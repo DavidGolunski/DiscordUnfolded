@@ -14,6 +14,58 @@
       "Tooltip": "TODO_ENTER_TOOLTIP",
       "UUID": "com.davidgolunski.startreceivingaction",
       "PropertyInspectorPath": "PropertyInspector/PluginActionPI.html"
+    },
+    {
+      "Icon": "Images/icon",
+      "Name": "Global Settings",
+      "States": [
+        {
+          "Image": "Images/pluginAction",
+          "TitleAlignment": "middle",
+          "FontSize": "12"
+        }
+      ],
+      "SupportedInMultiActions": false,
+      "Tooltip": "TODO_ENTER_TOOLTIP",
+      "UUID": "com.davidgolunski.globalsettingsaction",
+      "PropertyInspectorPath": "PropertyInspector/PluginActionPI.html"
+    },
+    {
+      "Icon": "Actions/ServerGridNavigationAction/UpDownIcon",
+      "Name": "Server Grid Navigation",
+      "States": [
+        {
+          "Image": "Actions/ServerGridNavigationAction/DownArrow",
+          "TitleAlignment": "middle",
+          "FontSize": "12"
+        },
+        {
+          "Image": "Actions/ServerGridNavigationAction/UpArrow",
+          "TitleAlignment": "middle",
+          "FontSize": "12"
+        }
+      ],
+      "DisableAutomaticStates": true,
+      "SupportedInMultiActions": false,
+      "Tooltip": "Lets you scroll through the servers that are shown on the \"Server Grid\" Action",
+      "UUID": "com.davidgolunski.discordunfolded.servergridnavigationaction",
+      "PropertyInspectorPath": "Actions/ServerGridNavigationAction/ServerGridNavigationAction.html"
+    },
+    {
+      "Icon": "Actions/ServerGridAction/Server",
+      "Name": "Server Grid Navigation",
+      "States": [
+        {
+          "Image": "Actions/ServerGridAction/Server",
+          "TitleAlignment": "middle",
+          "FontSize": "12"
+        }
+      ],
+      "DisableAutomaticStates": true,
+      "SupportedInMultiActions": false,
+      "Tooltip": "Lets you select a discord server",
+      "UUID": "com.davidgolunski.discordunfolded.servergridnaction",
+      "PropertyInspectorPath": "Actions/ServerGridAction/ServerGridAction.html"
     }
   ],
   "Author": "David Golunski",

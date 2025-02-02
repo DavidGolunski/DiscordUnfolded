@@ -66,7 +66,7 @@ namespace DiscordUnfolded {
                     }
                 }
                 catch(Exception ex) {
-                    Console.WriteLine($"Error: {ex.Message}");
+                    BarRaider.SdTools.Logger.Instance.LogMessage(TracingLevel.INFO, $"Error: {ex.Message}");
                     Logger.Instance.LogMessage(TracingLevel.ERROR, "Error: " + ex.StackTrace);
                 }
                 await Task.Delay(100, cancellationToken);

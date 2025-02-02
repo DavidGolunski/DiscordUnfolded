@@ -3,11 +3,11 @@ using Newtonsoft.Json.Linq;
 using System.Threading.Tasks;
 
 namespace DiscordUnfolded {
-    [PluginActionId("com.davidgolunski.startreceivingaction")]
-    public class StartReceivingAction : KeypadBase {
+    [PluginActionId("com.davidgolunski.globalsettingsaction")]
+    public class GlobalSettingsAction : KeypadBase {
 
 
-        public StartReceivingAction(SDConnection connection, InitialPayload payload) : base(connection, payload) {
+        public GlobalSettingsAction(SDConnection connection, InitialPayload payload) : base(connection, payload) {
 
         }
 
@@ -15,11 +15,11 @@ namespace DiscordUnfolded {
         }
 
         public override void KeyPressed(KeyPayload payload) {
-            if(DiscordRPC.Instance.IsRunning) {
-                DiscordRPC.Instance.Stop();
+            if(DiscordBot.Instance.IsRunning) {
+                DiscordBot.Instance.Stop();
             }
             else {
-                DiscordRPC.Instance.Start();
+                DiscordBot.Instance.Start();
             }
         }
 
