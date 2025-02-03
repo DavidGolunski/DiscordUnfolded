@@ -15,11 +15,18 @@ namespace DiscordUnfolded {
         }
 
         public override void KeyPressed(KeyPayload payload) {
-            if(DiscordRPC.Instance.IsRunning) {
+            /*if(DiscordRPC.Instance.IsRunning) {
                 DiscordRPC.Instance.Stop();
             }
             else {
                 DiscordRPC.Instance.Start();
+            }*/
+
+            if(DiscordBot.Instance.IsRunning) {
+                DiscordBot.Instance.Stop();
+            }
+            else {
+                DiscordBot.Instance.Start();
             }
         }
 
@@ -28,6 +35,7 @@ namespace DiscordUnfolded {
         public override void OnTick() { }
 
         public override void ReceivedSettings(ReceivedSettingsPayload payload) {
+           
         }
 
         public override void ReceivedGlobalSettings(ReceivedGlobalSettingsPayload payload) { }

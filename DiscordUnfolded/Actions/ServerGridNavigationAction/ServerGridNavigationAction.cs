@@ -37,10 +37,10 @@ namespace DiscordUnfolded {
 
         public override void KeyPressed(KeyPayload payload) {
             if(settings.Direction == "up") {
-                DiscordDataManager.Instance.ServerBrowserOffset -= 1;
+                ServerBrowserManager.Instance.Offset -= 1;
             }
             else {
-                DiscordDataManager.Instance.ServerBrowserOffset += 1;
+                ServerBrowserManager.Instance.Offset += 1;
             }
         }
 

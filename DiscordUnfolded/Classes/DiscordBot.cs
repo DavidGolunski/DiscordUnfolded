@@ -42,7 +42,7 @@ namespace DiscordUnfolded {
 
             Task.Run(() => ListenForMessages(cancellationTokenSource.Token), token);
 
-            Logger.Instance.LogMessage(TracingLevel.INFO, "BetterDiscordReceiver Started");
+            Logger.Instance.LogMessage(TracingLevel.INFO, "DiscordBot Started");
 
         }
 
@@ -60,11 +60,12 @@ namespace DiscordUnfolded {
             cancellationTokenSource.Dispose();
             cancellationTokenSource = null;
 
-            Logger.Instance.LogMessage(TracingLevel.INFO, "BetterDiscordReceiver Stopped");
+            Logger.Instance.LogMessage(TracingLevel.INFO, "DiscordBot Stopped");
         }
 
         private async Task ListenForMessages(CancellationToken cancellationToken) {
             client = new DiscordSocketClient();
+
             var token = "MTMzNTAyMzQ3NjczMzUxMzgxOQ.GkuN8c.cfea9Nf7CYrAsSvxdb01PLEz1yrZoJzucnWXgk";
 
             await client.LoginAsync(Discord.TokenType.Bot, token);
@@ -97,16 +98,42 @@ namespace DiscordUnfolded {
                 return;
             }
 
-            // Get the first guild the bot is in
-            var guild = client.Guilds.First();
+            foreach(var currentGuild in client.Guilds) {
+                string message = "GuildID: " + currentGuild.Id + " GuildName: " + currentGuild.Name + " OwnerID: " + currentGuild.OwnerId;
 
-            // Get all voice channels
-            var voiceChannels = guild.VoiceChannels;
+                foreach(var user in currentGuild.Users) {
+                    
+                    message += "\n\t UserID: " + user.Id + " UserName: " + user.DisplayName;
+                }
+                foreach(var channel in currentGuild.VoiceChannels) {
 
-            Logger.Instance.LogMessage(TracingLevel.INFO, $"Voice Channels in {guild.Name}:");
-            foreach(var channel in voiceChannels) {
-                Logger.Instance.LogMessage(TracingLevel.INFO, $"- {channel.Name} (ID: {channel.Id})");
+                    message += "\n\t VoiceChannel: " + channel.Id + " ChannelName: " + channel.Name;
+                }
+                Logger.Instance.LogMessage(TracingLevel.DEBUG, message);
+
+                var daweedUser = currentGuild.GetUser(712795448125030432);
+                if(daweedUser != null) {
+                    Logger.Instance.LogMessage(TracingLevel.DEBUG, "User Daweed was found " + daweedUser.Nickname);
+                }
+                else {
+                    Logger.Instance.LogMessage(TracingLevel.DEBUG, "User Daweed was NOT found");
+                }
             }
+
+
+            List<DiscordGuildInfo> guildInfos = new List<DiscordGuildInfo>();
+            foreach(var currentGuild in client.Guilds) {
+
+                DiscordGuildInfo guildInfo = new DiscordGuildInfo();
+                guildInfo.GuildId = currentGuild.Id;
+                guildInfo.GuildName = currentGuild.Name;
+                guildInfo.IconUrl = currentGuild.IconUrl;
+                
+                guildInfos.Add(guildInfo);
+                Logger.Instance.LogMessage(TracingLevel.DEBUG, currentGuild.ToString());
+            }
+
+            ServerBrowserManager.Instance.UpdateGuildList(guildInfos);
         }
 #pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
     }

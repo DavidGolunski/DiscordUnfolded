@@ -64,7 +64,7 @@
       "DisableAutomaticStates": true,
       "SupportedInMultiActions": false,
       "Tooltip": "Lets you select a discord server",
-      "UUID": "com.davidgolunski.discordunfolded.servergridnaction",
+      "UUID": "com.davidgolunski.discordunfolded.servergridaction",
       "PropertyInspectorPath": "Actions/ServerGridAction/ServerGridAction.html"
     }
   ],
