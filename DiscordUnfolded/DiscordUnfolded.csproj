@@ -127,6 +127,21 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Actions\ChannelGridAction\ChannelGridAction.cs">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Actions\ChannelGridAction\ChannelGridSettings.cs">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Actions\ChannelGridNavigationAction\ChannelGridNavigationAction.cs">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Actions\ChannelGridNavigationAction\ChannelGridNavigationSettings.cs">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Actions\CurrentServerAction\CurrentServerAction.cs">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Compile>
     <Compile Include="Actions\GlobalSettingsAction\GlobalSettingsAction.cs" />
     <Compile Include="Actions\ServerGridAction\ServerGridAction.cs">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -142,12 +157,17 @@
     </Compile>
     <Compile Include="Classes\BetterDiscordReceiver.cs" />
     <Compile Include="Actions\StartReceivingAction\StartReceivingAction.cs" />
+    <Compile Include="Classes\ChannelGridManager.cs" />
+    <Compile Include="Classes\DiscordChannelInfo.cs" />
+    <Compile Include="Classes\DiscordGuild.cs" />
+    <Compile Include="Classes\DiscordInfo.cs" />
     <Compile Include="Classes\DiscordRPC.cs" />
     <Compile Include="Classes\DiscordBot.cs" />
     <Compile Include="Classes\DiscordGuildInfo.cs" />
+    <Compile Include="Classes\DiscordUserInfo.cs" />
     <Compile Include="Classes\ImageTools.cs" />
     <Compile Include="Classes\ServerBrowserManager.cs" />
-    <Compile Include="Program.cs" />
+    <Compile Include="Classes\Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -155,9 +175,68 @@
     <None Include="manifest.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="packages.config" />
+    <None Include="packages.config">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
   <ItemGroup>
+    <Content Include="Actions\ChannelGridAction\Hashtag%402x.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Actions\ChannelGridAction\Hashtag.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Actions\ChannelGridAction\ChannelGridAction.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Actions\ChannelGridAction\SoundIcon%402x.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Actions\ChannelGridAction\SoundIcon.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Actions\ChannelGridNavigationAction\ArrowsIcon%402x.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Actions\ChannelGridNavigationAction\ArrowsIcon.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Actions\ChannelGridNavigationAction\DownArrow%402x.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Actions\ChannelGridNavigationAction\DownArrow.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Actions\ChannelGridNavigationAction\LeftArrow%402x.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Actions\ChannelGridNavigationAction\LeftArrow.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Actions\ChannelGridNavigationAction\RightArrow%402x.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Actions\ChannelGridNavigationAction\RightArrow.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Actions\ChannelGridNavigationAction\ChannelGridNavigationAction.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Actions\ChannelGridNavigationAction\UpArrow%402x.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Actions\ChannelGridNavigationAction\UpArrow.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Actions\CurrentServerAction\Server%402x.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Actions\CurrentServerAction\Server.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Actions\CurrentServerAction\CurrentServerAction.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="Actions\ServerGridAction\Server%402x.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
@@ -212,6 +291,12 @@
     <Content Include="Images\pluginIcon.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="Images\RoundRectangle%402x.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\RoundRectangle.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="PropertyInspector\DialActionPI.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
@@ -222,8 +307,6 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Actions\ChannelGridAction\" />
-  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

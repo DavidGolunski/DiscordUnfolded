@@ -36,7 +36,7 @@ namespace DiscordUnfolded {
             } 
         }
 
-        private readonly List<DiscordGuildInfo> guildList = new List<DiscordGuildInfo>();
+        private readonly List<DiscordGuild> guildList = new List<DiscordGuild>();
         private readonly Dictionary<int, EventHandler<DiscordGuildInfo>> updateEvents = new Dictionary<int, EventHandler<DiscordGuildInfo>>();
 
 
@@ -51,7 +51,7 @@ namespace DiscordUnfolded {
                 OnSelectedGuildChanged();
             }
         }
-        private event EventHandler<DiscordGuildInfo> selectedGuildEvents;
+        private event EventHandler<DiscordGuildInfo> SelectedGuildEvents;
 
 
         private ServerBrowserManager() { 
@@ -59,11 +59,46 @@ namespace DiscordUnfolded {
             for(int i= 0; i < maxServerButtons; i++) {
                 updateEvents[i] = null;
             }
+
+            DiscordGuild.SubscribeToGuildsChanged(OnGuildListChanged);
+            OnGuildListChanged(null, DiscordGuild.Guilds);
+            Logger.Instance.LogMessage(TracingLevel.DEBUG, "ServerBrowser Created");
         }
 
-        public void UpdateGuildList(List<DiscordGuildInfo> newGuildList) {
+        ~ServerBrowserManager() {
+            Logger.Instance.LogMessage(TracingLevel.DEBUG, "ServerBrowser Destroyed");
+            DiscordGuild.UnsubscribeFromGuildsChanged(OnGuildListChanged);
+        }
+
+        // called automatically when the available Discord Guilds have changed
+        private void OnGuildListChanged(object sender, List<DiscordGuild> newGuildList) {
+            Logger.Instance.LogMessage(TracingLevel.DEBUG, "GuildListChanged Received: " + newGuildList.Count);
+
+            foreach (var guild in guildList) {
+                guild?.UnsubscribeFromGuildInfo(OnGuildInfoChanged);
+            }
+
             guildList.Clear();
             guildList.AddRange(newGuildList);
+
+            // if the info or the name has changed the buttons will instantly be updated
+            foreach(var guild in newGuildList) {
+                guild.SubscribeToGuildInfo(OnGuildInfoChanged);
+            }
+
+            UpdateAllPositions();
+        }
+
+        // if the info or the name has changed the buttons will instantly be updated
+        private void OnGuildInfoChanged(object sender, DiscordGuildInfo info) {
+            foreach(var guild in guildList) {
+                if(guild.GuildId != info.GuildId)
+                    continue;
+
+                guild.GuildName = info.GuildName;
+                guild.IconUrl = info.IconUrl;
+            }
+
             UpdateAllPositions();
         }
 
@@ -79,8 +114,8 @@ namespace DiscordUnfolded {
             if(!instantlyUpdate)
                 return;
 
-            DiscordGuildInfo guildToUpdate = GetGuildAtPosition(position);
-            handler.Invoke(this, guildToUpdate);
+            DiscordGuild guildToUpdate = GetGuildAtPosition(position);
+            handler.Invoke(this, guildToUpdate.GetInfo());
         }
 
         public void UnsubscribeFromPosition(int position, EventHandler<DiscordGuildInfo> handler) {
@@ -92,20 +127,17 @@ namespace DiscordUnfolded {
         }
 
         private void UpdateAllPositions() {
-            for(int i = 0; i < maxServerButtons; i++) {
-                UpdatePosition(i);
+            for(int position = 0; position < maxServerButtons; position++) {
+                DiscordGuild guildToUpdate = GetGuildAtPosition(position);
+
+                if(updateEvents.ContainsKey(position) && updateEvents[position] != null) {
+                    updateEvents[position].Invoke(this, guildToUpdate.GetInfo());
+                }
             }
         }
 
-        private void UpdatePosition(int position) {
-            DiscordGuildInfo guildToUpdate = GetGuildAtPosition(position);
-
-            if(updateEvents.ContainsKey(position) && updateEvents[position] != null) {
-                updateEvents[position].Invoke(this, guildToUpdate);
-            }
-        }
-
-        private DiscordGuildInfo GetGuildAtPosition(int position) {
+        // returns the guild that should be displayed at "position". Takes offset and guild count into account
+        private DiscordGuild GetGuildAtPosition(int position) {
             if(position < 0 || position >= maxServerButtons || guildList.Count == 0) {
                 return null;
             }
@@ -118,16 +150,21 @@ namespace DiscordUnfolded {
 
         #region Selected Guild
 
-        public void SubscribeToSelectedGuild(EventHandler<DiscordGuildInfo> handler) {
-            selectedGuildEvents += handler;
+        public void SubscribeToSelectedGuild(EventHandler<DiscordGuildInfo> handler, bool instantlyUpdate = false) {
+            SelectedGuildEvents += handler;
+
+            if(!instantlyUpdate)
+                return;
+
+            handler.Invoke(this, selectedGuild);
         }
 
-        public void UnsubscribeFromSelectedGuild(int position, EventHandler<DiscordGuildInfo> handler) {
-            selectedGuildEvents -= handler;
+        public void UnsubscribeFromSelectedGuild(EventHandler<DiscordGuildInfo> handler) {
+            SelectedGuildEvents -= handler;
         }
 
         private void OnSelectedGuildChanged() {
-            selectedGuildEvents?.Invoke(this, SelectedGuild);
+            SelectedGuildEvents?.Invoke(this, SelectedGuild);
         }
 
         #endregion

@@ -20,10 +20,9 @@ namespace DiscordUnfolded {
 
         // shows if the autoclicker is currently running
         public bool IsRunning { get => cancellationTokenSource != null; }
-
         private CancellationTokenSource cancellationTokenSource;
-
         private DiscordSocketClient client;
+
 
         private DiscordBot() {
             cancellationTokenSource = null;
@@ -40,7 +39,7 @@ namespace DiscordUnfolded {
             cancellationTokenSource = new CancellationTokenSource();
             CancellationToken token = cancellationTokenSource.Token;
 
-            Task.Run(() => ListenForMessages(cancellationTokenSource.Token), token);
+            Task.Run(() => StartBotClient(cancellationTokenSource.Token), token);
 
             Logger.Instance.LogMessage(TracingLevel.INFO, "DiscordBot Started");
 
@@ -63,7 +62,8 @@ namespace DiscordUnfolded {
             Logger.Instance.LogMessage(TracingLevel.INFO, "DiscordBot Stopped");
         }
 
-        private async Task ListenForMessages(CancellationToken cancellationToken) {
+        private async Task StartBotClient(CancellationToken cancellationToken) {
+            DiscordGuild.RemoveAllGuilds();
             client = new DiscordSocketClient();
 
             var token = "MTMzNTAyMzQ3NjczMzUxMzgxOQ.GkuN8c.cfea9Nf7CYrAsSvxdb01PLEz1yrZoJzucnWXgk";
@@ -72,6 +72,9 @@ namespace DiscordUnfolded {
             await client.StartAsync();
 
             client.Ready += OnClientReady;
+            client.GuildAvailable += OnGuildAdded;
+            client.GuildUnavailable += OnGuildRemoved;
+            client.GuildUpdated += OnGuildUpdated;
 
             await Task.Delay(-1, cancellationToken);
         }
@@ -98,43 +101,42 @@ namespace DiscordUnfolded {
                 return;
             }
 
-            foreach(var currentGuild in client.Guilds) {
-                string message = "GuildID: " + currentGuild.Id + " GuildName: " + currentGuild.Name + " OwnerID: " + currentGuild.OwnerId;
+            foreach(SocketGuild guild in client.Guilds) {
+                DiscordGuild.AddGuild(new DiscordGuild(guild.Id, guild.Name, guild.IconUrl));
 
-                foreach(var user in currentGuild.Users) {
+                foreach(SocketTextChannel textChannel in guild.TextChannels) {
+
+                }
+
+                foreach(SocketVoiceChannel voiceChannel in guild.VoiceChannels) {
                     
-                    message += "\n\t UserID: " + user.Id + " UserName: " + user.DisplayName;
                 }
-                foreach(var channel in currentGuild.VoiceChannels) {
 
-                    message += "\n\t VoiceChannel: " + channel.Id + " ChannelName: " + channel.Name;
-                }
-                Logger.Instance.LogMessage(TracingLevel.DEBUG, message);
-
-                var daweedUser = currentGuild.GetUser(712795448125030432);
-                if(daweedUser != null) {
-                    Logger.Instance.LogMessage(TracingLevel.DEBUG, "User Daweed was found " + daweedUser.Nickname);
-                }
-                else {
-                    Logger.Instance.LogMessage(TracingLevel.DEBUG, "User Daweed was NOT found");
-                }
             }
-
-
-            List<DiscordGuildInfo> guildInfos = new List<DiscordGuildInfo>();
-            foreach(var currentGuild in client.Guilds) {
-
-                DiscordGuildInfo guildInfo = new DiscordGuildInfo();
-                guildInfo.GuildId = currentGuild.Id;
-                guildInfo.GuildName = currentGuild.Name;
-                guildInfo.IconUrl = currentGuild.IconUrl;
-                
-                guildInfos.Add(guildInfo);
-                Logger.Instance.LogMessage(TracingLevel.DEBUG, currentGuild.ToString());
-            }
-
-            ServerBrowserManager.Instance.UpdateGuildList(guildInfos);
         }
+
+        private async Task OnGuildAdded(SocketGuild guild) {
+            DiscordGuild discordGuild = new DiscordGuild(guild.Id, guild.Name, guild.IconUrl);
+            DiscordGuild.AddGuild(discordGuild);
+        }
+
+        private async Task OnGuildRemoved(SocketGuild guild) {
+            DiscordGuild.RemoveGuild(guild.Id);
+        }
+
+        private async Task OnGuildUpdated(SocketGuild guild, SocketGuild guild2) {
+            Logger.Instance.LogMessage(TracingLevel.DEBUG, guild.Name + " " + guild2.Name);
+
+            if(guild.Name != guild2.Name) {
+                DiscordGuild.GetGuild(guild.Id).GuildName = guild2.Name;
+            }
+            if(guild.IconUrl != guild2.IconUrl) {
+                DiscordGuild.GetGuild(guild.Id).IconUrl = guild2.IconUrl;
+            }
+            
+        }
+
 #pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
+
     }
 }

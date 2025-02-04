@@ -5,6 +5,10 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace DiscordUnfolded {
+    /*
+     * This class is a
+     * 
+     */
     public class DiscordGuildInfo {
 
         public ulong GuildId { get; set; }  
@@ -15,6 +19,12 @@ namespace DiscordUnfolded {
             GuildId = 0;
             GuildName = string.Empty;
             IconUrl = string.Empty;
+        }
+
+        public DiscordGuildInfo(ulong guildId, string guildName, string iconUrl) {
+            this.GuildId = guildId;
+            this.GuildName = guildName;
+            this.IconUrl = iconUrl;
         }
 
         public override bool Equals(object obj) {

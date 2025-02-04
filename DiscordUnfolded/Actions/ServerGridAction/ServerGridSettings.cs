@@ -10,7 +10,7 @@ namespace DiscordUnfolded {
     internal class ServerGridSettings {
 
         [JsonProperty(PropertyName = "position")]
-        public int Position { get; set; } // can either be "up" or "down" refering to the 
+        public int Position { get; set; } // position of the button between 0 and 7
 
 
         public ServerGridSettings() {

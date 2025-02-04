@@ -38,7 +38,7 @@ namespace DiscordUnfolded {
         }
 
         public override void KeyPressed(KeyPayload payload) {
-
+            ServerBrowserManager.Instance.SelectedGuild = currentGuildInfo;
         }
 
         public override void KeyReleased(KeyPayload payload) { }
@@ -66,12 +66,11 @@ namespace DiscordUnfolded {
                 return;
             if(currentGuildInfo != null && currentGuildInfo.Equals(discordGuildInfo))
                 return;
-            
+
 
             currentGuildInfo = discordGuildInfo;
 
             if(discordGuildInfo == null) {
-                Connection.SetTitleAsync("").GetAwaiter().GetResult();
                 Connection.SetDefaultImageAsync().GetAwaiter().GetResult();
                 return;
             }
@@ -79,14 +78,13 @@ namespace DiscordUnfolded {
             string imageUrl = discordGuildInfo.IconUrl;
             Bitmap bitmap = ImageTools.GetResizedBitmapFromUrl(imageUrl);
             if(bitmap == null) {
-                Connection.SetDefaultImageAsync().GetAwaiter().GetResult();
-                Connection.SetTitleAsync(discordGuildInfo.GuildName).GetAwaiter().GetResult();
-                return;
+                bitmap = ImageTools.GetBitmapFromFilePath("./Images/RoundRectangle@2x.png");
+                string title = ImageTools.SplitString(discordGuildInfo.GuildName, 7);
+                bitmap = ImageTools.AddTextToBitmap(bitmap, title);
             }
 
-            Connection.SetTitleAsync("").GetAwaiter().GetResult();
             Connection.SetImageAsync(bitmap).GetAwaiter().GetResult();
-            bitmap.Dispose(); 
+            bitmap.Dispose();
         }
 
 
