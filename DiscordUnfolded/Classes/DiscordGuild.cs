@@ -72,8 +72,9 @@ namespace DiscordUnfolded {
         private EventHandler<DiscordGuildInfo> guildInfoChanged;
 
 
-        private List<DiscordChannel> textChannels;
 
+        private readonly Dictionary<ulong, DiscordTextChannel> textChannels = new Dictionary<ulong, DiscordTextChannel>();
+        private readonly Dictionary<ulong, DiscordVoiceChannel> voiceChannels = new Dictionary<ulong, DiscordVoiceChannel>();
 
 
         public DiscordGuild(ulong guildId, string guildName, string iconUrl) {
@@ -94,7 +95,44 @@ namespace DiscordUnfolded {
             guildInfoChanged -= handler;
         }
 
-    
+
+        public void AddTextChannel(DiscordTextChannel textChannel) {
+            if(textChannel == null || textChannels.ContainsKey(textChannel.ChannelId))
+                return;
+
+            textChannels[textChannel.ChannelId] = textChannel;
+        }
+
+        public void RemoveTextChannel(ulong textChannelId) {
+            if(!textChannels.ContainsKey(textChannelId))
+                return;
+
+            textChannels.Remove(textChannelId);
+        }
+
+        public DiscordTextChannel GetTextChannel(ulong textChannelId) {
+            return textChannels.ContainsKey(textChannelId) ? textChannels[textChannelId] : null;
+        }
+
+
+
+        public void AddVoiceChannel(DiscordVoiceChannel voiceChannel) {
+            if(voiceChannel == null || voiceChannels.ContainsKey(voiceChannel.ChannelId))
+                return;
+
+            voiceChannels[voiceChannel.ChannelId] = voiceChannel;
+        }
+
+        public void RemoveVoiceChannel(ulong voiceChannel) {
+            if(!voiceChannels.ContainsKey(voiceChannel))
+                return;
+
+            voiceChannels.Remove(voiceChannel);
+        }
+
+        public DiscordVoiceChannel GetVoiceChannel(ulong voiceChannelId) {
+            return voiceChannels.ContainsKey(voiceChannelId) ? voiceChannels[voiceChannelId] : null;
+        }
 
     }
 }

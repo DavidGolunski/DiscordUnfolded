@@ -11,9 +11,6 @@ namespace DiscordUnfolded {
             // Uncomment this line of code to allow for debugging
             //while (!System.Diagnostics.Debugger.IsAttached) { System.Threading.Thread.Sleep(100); }
 
-            // call the instance of the managers once so they can subscribe to any events beforehand
-            //ServerBrowserManager.Instance.ToString();
-            //ChannelGridManager.Instance.ToString();
             DiscordBot.Instance.Start();
 
             SDWrapper.Run(args);

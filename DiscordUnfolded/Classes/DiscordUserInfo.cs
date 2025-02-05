@@ -9,10 +9,10 @@ using System.Threading.Tasks;
 namespace DiscordUnfolded {
 
     public enum VoiceStates {
-        UNKNOWN,
+        DISCONNECTED,
         UNMUTED,
         MUTED,
-        DEAFEND
+        DEAFENED
     }
 
     public class DiscordUserInfo {
@@ -25,7 +25,7 @@ namespace DiscordUnfolded {
         public DiscordUserInfo() {
             UserId = 0;
             UserName = string.Empty;
-            VoiceState = VoiceStates.UNKNOWN;
+            VoiceState = VoiceStates.DISCONNECTED;
             IconUrl = string.Empty;
         }
 

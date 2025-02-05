@@ -155,19 +155,46 @@
     <Compile Include="Actions\ServerGridNavigationAction\ServerGridNavigationSettings.cs">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Compile>
-    <Compile Include="Classes\BetterDiscordReceiver.cs" />
     <Compile Include="Actions\StartReceivingAction\StartReceivingAction.cs" />
-    <Compile Include="Classes\ChannelGridManager.cs" />
-    <Compile Include="Classes\DiscordChannelInfo.cs" />
-    <Compile Include="Classes\DiscordGuild.cs" />
-    <Compile Include="Classes\DiscordInfo.cs" />
-    <Compile Include="Classes\DiscordRPC.cs" />
-    <Compile Include="Classes\DiscordBot.cs" />
-    <Compile Include="Classes\DiscordGuildInfo.cs" />
-    <Compile Include="Classes\DiscordUserInfo.cs" />
-    <Compile Include="Classes\ImageTools.cs" />
-    <Compile Include="Classes\ServerBrowserManager.cs" />
-    <Compile Include="Classes\Program.cs" />
+    <Compile Include="Classes\ChannelGridManager.cs">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Classes\DiscordUser.cs">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Classes\DiscordVoiceChannel.cs">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Classes\DiscordTextChannel.cs">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Classes\DiscordChannelInfo.cs">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Classes\DiscordGuild.cs">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Classes\DiscordRPC.cs">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Classes\DiscordBot.cs">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Classes\DiscordGuildInfo.cs">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Classes\DiscordUserInfo.cs">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Classes\ImageTools.cs">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Classes\ServerBrowserManager.cs">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Classes\Program.cs">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
