@@ -14,8 +14,16 @@ namespace DiscordUnfolded {
             private set => instance = value;
         }
 
-        private const int width = 8;
-        private const int height = 4;
+        private int width;
+        public int Width {
+            get => width; 
+            set {
+                if(width == value ) 
+                    return;
+                width = value;
+            }
+        }
+        private const int Height = 4;
 
         private int xOffset = 0;
         public int XOffset {
@@ -24,7 +32,7 @@ namespace DiscordUnfolded {
                 if(xOffset == value)
                     return;
 
-                int newValue = Math.Min(value, width);
+                int newValue = Math.Min(value, Width);
                 newValue = Math.Max(newValue, 0);
                 xOffset = newValue;
             }
@@ -36,7 +44,7 @@ namespace DiscordUnfolded {
                 if(yOffset == value)
                     return;
 
-                int newValue = Math.Min(value, height);
+                int newValue = Math.Min(value, Height);
                 newValue = Math.Max(newValue, 0);
                 yOffset = newValue;
             }
@@ -51,7 +59,7 @@ namespace DiscordUnfolded {
 
         private ChannelGridManager() {
 
-            for(int y = 0; y < height; y++) {
+            for(int y = 0; y < Height; y++) {
                 for(int x = 0; x < width; x++) {
                     updateEvents[(x, y)] = null;
                 }
@@ -66,12 +74,11 @@ namespace DiscordUnfolded {
 
         private void OnSelectedGuildChanged(object sender, DiscordGuildInfo discordGuildInfo) {
             guildInfo = discordGuildInfo;
-
         }
 
 
         public void SubscribeToPosition(int xPos, int yPos, EventHandler<(DiscordChannelInfo, DiscordUserInfo)> handler, bool instantlyUpdate = false) {
-            if(xPos < 0 || xPos >= width || yPos < 0 || yPos >= height) {
+            if(xPos < 0 || xPos >= width || yPos < 0 || yPos >= Height) {
                 Logger.Instance.LogMessage(TracingLevel.WARN, "ChannelButton wanted to subsribe to position (" + xPos + "," + yPos + ")");
                 return;
             }
@@ -85,12 +92,14 @@ namespace DiscordUnfolded {
         }
 
         public void UnsubscribeFromPosition(int xPos, int yPos, EventHandler<(DiscordChannelInfo, DiscordUserInfo)> handler) {
-            if(xPos < 0 || xPos >= width || yPos < 0 || yPos >= height) {
+            if(!updateEvents.ContainsKey((xPos, yPos))) {
                 Logger.Instance.LogMessage(TracingLevel.WARN, "ChannelButton wanted to unsubsribe from position (" + xPos + "," + yPos + ")");
                 return;
             }
             updateEvents[(xPos, yPos)] -= handler;
         }
+
+
 
     }
 }

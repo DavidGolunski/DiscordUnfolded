@@ -19,6 +19,7 @@ namespace DiscordUnfolded {
         private readonly ServerGridSettings settings;
 
         private DiscordGuildInfo currentGuildInfo = null;
+        private DiscordGuildInfo selectedGuildInfo = null;
 
 
         public ServerGridAction(SDConnection connection, InitialPayload payload) : base(connection, payload) {
@@ -30,11 +31,13 @@ namespace DiscordUnfolded {
                 this.settings = payload.Settings.ToObject<ServerGridSettings>();
             }
 
-            ServerBrowserManager.Instance.SubscribeToPosition(settings.Position, UpdateButton, true);
+            ServerBrowserManager.Instance.SubscribeToPosition(settings.Position, UpdateCurrentGuild, true);
+            ServerBrowserManager.Instance.SubscribeToSelectedGuild(UpdateSelectedGuild, true);
         }
 
         public override void Dispose() {
-            ServerBrowserManager.Instance.UnsubscribeFromPosition(settings.Position, UpdateButton);
+            ServerBrowserManager.Instance.UnsubscribeFromPosition(settings.Position, UpdateCurrentGuild);
+            ServerBrowserManager.Instance.UnsubscribeFromSelectedGuild(UpdateSelectedGuild);
         }
 
         public override void KeyPressed(KeyPayload payload) {
@@ -52,41 +55,74 @@ namespace DiscordUnfolded {
             Tools.AutoPopulateSettings(settings, payload.Settings);
 
             if(oldPosition != settings.Position) {
-                ServerBrowserManager.Instance.UnsubscribeFromPosition(oldPosition, UpdateButton);
-                ServerBrowserManager.Instance.SubscribeToPosition(settings.Position, UpdateButton, true);
+                ServerBrowserManager.Instance.UnsubscribeFromPosition(oldPosition, UpdateCurrentGuild);
+                ServerBrowserManager.Instance.SubscribeToPosition(settings.Position, UpdateCurrentGuild, true);
             }
 
             SaveSettings();
         }
 
 
-        public void UpdateButton(object sender, DiscordGuildInfo discordGuildInfo) {
-            // if the info has not changed, then we do not need to update
-            if(currentGuildInfo == null && discordGuildInfo == null)
-                return;
-            if(currentGuildInfo != null && currentGuildInfo.Equals(discordGuildInfo))
+        private void UpdateSelectedGuild(object sender, DiscordGuildInfo selectedGuildInfo) {
+            if(this.selectedGuildInfo == null && selectedGuildInfo == null)
                 return;
 
+            if(this.selectedGuildInfo == null && selectedGuildInfo != null) {
+                this.selectedGuildInfo = selectedGuildInfo;
+                UpdateButton(this.currentGuildInfo, selectedGuildInfo);
+                return;
+            }
 
-            currentGuildInfo = discordGuildInfo;
+            if(this.selectedGuildInfo.Equals(selectedGuildInfo))
+                return;
 
-            if(discordGuildInfo == null) {
+            this.selectedGuildInfo = selectedGuildInfo;
+            UpdateButton(this.currentGuildInfo, selectedGuildInfo);
+        }
+
+        private void UpdateCurrentGuild(object sender, DiscordGuildInfo currentGuildInfo) {
+            if(this.currentGuildInfo == null && currentGuildInfo == null)
+                return;
+
+            if(this.currentGuildInfo == null && currentGuildInfo != null) {
+                this.currentGuildInfo = currentGuildInfo;
+                UpdateButton(currentGuildInfo, selectedGuildInfo);
+                return;
+            }
+
+            if(this.currentGuildInfo.Equals(currentGuildInfo))
+                return;
+
+            this.currentGuildInfo = currentGuildInfo;
+            UpdateButton(currentGuildInfo, selectedGuildInfo);
+        }
+
+
+
+        private void UpdateButton(DiscordGuildInfo currentGuildInfo, DiscordGuildInfo selectedGuildInfo) {
+            Logger.Instance.LogMessage(TracingLevel.DEBUG, currentGuildInfo + " " + selectedGuildInfo);
+            if(currentGuildInfo == null) {
                 Connection.SetDefaultImageAsync().GetAwaiter().GetResult();
                 return;
             }
 
-            string imageUrl = discordGuildInfo.IconUrl;
+            string imageUrl = currentGuildInfo.IconUrl;
             Bitmap bitmap = ImageTools.GetResizedBitmapFromUrl(imageUrl);
             if(bitmap == null) {
                 bitmap = ImageTools.GetBitmapFromFilePath("./Images/RoundRectangle@2x.png");
-                string title = ImageTools.SplitString(discordGuildInfo.GuildName, 7);
+                string title = ImageTools.SplitString(currentGuildInfo.GuildName, 7);
                 bitmap = ImageTools.AddTextToBitmap(bitmap, title);
+            }
+
+            if(selectedGuildInfo != null && currentGuildInfo.Equals(selectedGuildInfo)) {
+                Bitmap highlightColorBitmap = ImageTools.GetResizedBitmapFromUrl("./Images/GreenHighlight@2x.png");
+                bitmap = ImageTools.MergeBitmaps(bitmap, highlightColorBitmap);
             }
 
             Connection.SetImageAsync(bitmap).GetAwaiter().GetResult();
             bitmap.Dispose();
-        }
 
+        }
 
         private Task SaveSettings() {
             return Connection.SetSettingsAsync(JObject.FromObject(settings));

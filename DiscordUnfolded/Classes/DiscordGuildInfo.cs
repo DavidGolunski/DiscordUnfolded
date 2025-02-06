@@ -47,7 +47,7 @@ namespace DiscordUnfolded {
         }
 
         public override string ToString() {
-            return "DiscordGuild: " + GuildId.ToString() + "," + GuildName.ToString() + "," + IconUrl.ToString();
+            return "DiscordGuild: " + GuildId.ToString() + "," + GuildName + "," + IconUrl;
         }
     }
 }

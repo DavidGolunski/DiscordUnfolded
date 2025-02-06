@@ -16,19 +16,19 @@
       "PropertyInspectorPath": "PropertyInspector/PluginActionPI.html"
     },
     {
-      "Icon": "Images/icon",
+      "Icon": "Actions/GlobalSettingsAction/SettingIcon",
       "Name": "Global Settings",
       "States": [
         {
-          "Image": "Images/pluginAction",
+          "Image": "Actions/GlobalSettingsAction/SettingIcon",
           "TitleAlignment": "middle",
           "FontSize": "12"
         }
       ],
       "SupportedInMultiActions": false,
-      "Tooltip": "TODO_ENTER_TOOLTIP",
-      "UUID": "com.davidgolunski.globalsettingsaction",
-      "PropertyInspectorPath": "PropertyInspector/PluginActionPI.html"
+      "Tooltip": "Set Settings that will be valid for the entire plugin",
+      "UUID": "com.davidgolunski.discordunfolded.globalsettingsaction",
+      "PropertyInspectorPath": "Actions/GlobalSettingsAction/GlobalSettingsAction.html"
     },
     {
       "Icon": "Actions/ServerGridNavigationAction/UpDownIcon",

@@ -44,7 +44,9 @@ namespace DiscordUnfolded {
 
         public override void OnTick() { }
 
-        public override void ReceivedGlobalSettings(ReceivedGlobalSettingsPayload payload) {  }
+        public override void ReceivedGlobalSettings(ReceivedGlobalSettingsPayload payload) {  
+            
+        }
 
         public override void ReceivedSettings(ReceivedSettingsPayload payload) {
             int oldXPos = settings.XPos;

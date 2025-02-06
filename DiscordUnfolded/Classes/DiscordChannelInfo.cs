@@ -59,7 +59,7 @@ namespace DiscordUnfolded {
         }
 
         public override string ToString() {
-            return "DiscordChannel: " + ChannelId.ToString() + "," + ChannelName.ToString() + "," + ChannelType.ToString() + "," + Position.ToString();
+            return "DiscordChannel: " + ChannelId.ToString() + "," + ChannelName + "," + ChannelType + "," + Position.ToString();
         }
     }
 }

@@ -63,7 +63,7 @@ namespace DiscordUnfolded {
         }
 
         public override string ToString() {
-            return "User: " + UserId.ToString() + "," + UserName.ToString() + "," + VoiceState.ToString() + "," + IconUrl;
+            return "User: " + UserId.ToString() + "," + UserName + "," + VoiceState.ToString() + "," + IconUrl;
         }
     }
 }
