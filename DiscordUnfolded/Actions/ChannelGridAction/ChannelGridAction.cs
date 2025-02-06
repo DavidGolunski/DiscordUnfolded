@@ -17,8 +17,10 @@ namespace DiscordUnfolded {
 
 
         private readonly ChannelGridSettings settings;
+        private readonly GlobalSettings globalSettings;
 
-        private DiscordGuildInfo currentGuildInfo;
+        private ChannelGridInfo channelGridInfo = null;
+
 
         public ChannelGridAction(SDConnection connection, InitialPayload payload) : base(connection, payload) {
             if(payload.Settings == null || payload.Settings.Count == 0) {
@@ -28,6 +30,9 @@ namespace DiscordUnfolded {
             else {
                 this.settings = payload.Settings.ToObject<ChannelGridSettings>();
             }
+
+            this.globalSettings = new GlobalSettings();
+            GlobalSettingsManager.Instance.RequestGlobalSettings();
 
             ChannelGridManager.Instance.SubscribeToPosition(settings.XPos, settings.YPos, UpdateButton, true);
         }
@@ -44,8 +49,8 @@ namespace DiscordUnfolded {
 
         public override void OnTick() { }
 
-        public override void ReceivedGlobalSettings(ReceivedGlobalSettingsPayload payload) {  
-            
+        public override void ReceivedGlobalSettings(ReceivedGlobalSettingsPayload payload) {
+            Tools.AutoPopulateSettings(globalSettings, payload.Settings);
         }
 
         public override void ReceivedSettings(ReceivedSettingsPayload payload) {
@@ -62,33 +67,51 @@ namespace DiscordUnfolded {
         }
 
 
-        public void UpdateButton(object sender, (DiscordChannelInfo channelInfo, DiscordUserInfo userInfo) combinedInfo) {
-
-            
-            /*// if the info has not changed, then we do not need to update
-            if(currentGuildInfo == null && discordGuildInfo == null)
-                return;
-            if(currentGuildInfo != null && currentGuildInfo.Equals(discordGuildInfo))
+        public void UpdateButton(object sender, ChannelGridInfo newChannelGridInfo) {
+            if(newChannelGridInfo.Equals(this.channelGridInfo))
                 return;
 
+            this.channelGridInfo = newChannelGridInfo;
 
-            currentGuildInfo = discordGuildInfo;
+            if(newChannelGridInfo.ChannelInfo != null) {
+                UpdateButton(newChannelGridInfo.ChannelInfo);
+                return;
+            }
+            if(newChannelGridInfo.UserInfo != null) {
+                UpdateButton(newChannelGridInfo.UserInfo);
+                return;
+            }
+            Connection.SetDefaultImageAsync().GetAwaiter().GetResult();
+        }
 
-            if(discordGuildInfo == null) {
+        private void UpdateButton(DiscordChannelInfo channelInfo) {
+            if(channelInfo == null) {
                 Connection.SetDefaultImageAsync().GetAwaiter().GetResult();
                 return;
             }
 
-            string imageUrl = discordGuildInfo.IconUrl;
-            Bitmap bitmap = ImageTools.GetResizedBitmapFromUrl(imageUrl);
-            if(bitmap == null) {
-                bitmap = ImageTools.GetBitmapFromFilePath("./Images/RoundRectangle@2x.png");
-                string title = ImageTools.SplitString(discordGuildInfo.GuildName, 7);
-                bitmap = ImageTools.AddTextToBitmap(bitmap, title);
-            }
+            Bitmap bitmap = ImageTools.GetBitmapFromFilePath("./Images/RoundRectangle@2x.png");
+            string title = ImageTools.SplitString(channelInfo.ChannelName, 7);
+            bitmap = ImageTools.AddTextToBitmap(bitmap, title);
 
             Connection.SetImageAsync(bitmap).GetAwaiter().GetResult();
-            bitmap.Dispose();*/
+            bitmap.Dispose();
+            return;
+        }
+
+        private void UpdateButton(DiscordUserInfo userInfo) {
+            if(userInfo == null) {
+                Connection.SetDefaultImageAsync().GetAwaiter().GetResult();
+                return;
+            }
+
+            Bitmap bitmap = ImageTools.GetBitmapFromFilePath("./Images/RoundRectangle@2x.png");
+            string title = ImageTools.SplitString(userInfo.UserName, 7);
+            bitmap = ImageTools.AddTextToBitmap(bitmap, title);
+
+            Connection.SetImageAsync(bitmap).GetAwaiter().GetResult();
+            bitmap.Dispose();
+            return;
         }
 
 

@@ -54,6 +54,10 @@ namespace DiscordUnfolded {
         public void UnsubscribeFromChannelInfo(EventHandler<DiscordChannelInfo> handler) {
             channelInfoChanged -= handler;
         }
+
+        public override string ToString() {
+            return GetInfo().ToString();
+        }
     }
 
 }

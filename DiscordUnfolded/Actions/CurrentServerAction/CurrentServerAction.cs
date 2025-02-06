@@ -27,7 +27,19 @@ namespace DiscordUnfolded {
             ServerBrowserManager.Instance.UnsubscribeFromSelectedGuild(UpdateButton);
         }
 
-        public override void KeyPressed(KeyPayload payload) { }
+        public override void KeyPressed(KeyPayload payload) {
+            ChannelGridManager.Instance.UpdateChannelGrid();
+
+            if(currentGuildInfo == null) {
+                Logger.Instance.LogMessage(TracingLevel.DEBUG, "CurrentServerAction: currentGuildInfo is null");
+            }
+            else if(DiscordGuild.GetGuild(currentGuildInfo.GuildId) == null) {
+                Logger.Instance.LogMessage(TracingLevel.DEBUG, "CurrentServerAction: Guild with Name " + currentGuildInfo.GuildName + " is null");
+            }
+            else {
+                Logger.Instance.LogMessage(TracingLevel.DEBUG, "CurrentServerAction: " + DiscordGuild.GetGuild(currentGuildInfo.GuildId).ToString());
+            }
+        }
 
         public override void KeyReleased(KeyPayload payload) { }
 

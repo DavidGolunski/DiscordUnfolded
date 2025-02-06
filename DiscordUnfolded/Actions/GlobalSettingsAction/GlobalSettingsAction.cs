@@ -21,7 +21,12 @@ namespace DiscordUnfolded {
         }
 
         public override void KeyPressed(KeyPayload payload) {
-            
+            if(DiscordRPC.Instance.IsRunning) {
+                DiscordRPC.Instance.Stop();
+            }
+            else {
+                DiscordRPC.Instance.Start();
+            }
         }
 
         public override void KeyReleased(KeyPayload payload) { }

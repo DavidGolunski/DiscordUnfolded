@@ -72,7 +72,6 @@ namespace DiscordUnfolded {
 
         // called automatically when the available Discord Guilds have changed
         private void OnGuildListChanged(object sender, List<DiscordGuild> newGuildList) {
-            Logger.Instance.LogMessage(TracingLevel.DEBUG, "GuildListChanged Received: " + newGuildList.Count);
 
             foreach (var guild in guildList) {
                 guild?.UnsubscribeFromGuildInfo(OnGuildInfoChanged);

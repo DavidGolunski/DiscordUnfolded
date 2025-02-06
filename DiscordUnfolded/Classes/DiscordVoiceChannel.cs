@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Discord;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -32,6 +33,10 @@ namespace DiscordUnfolded {
         }
 
         private EventHandler<DiscordChannelInfo> channelInfoChanged;
+        // called when a user has been added or removed. Parameters: (bool (true if channel was added), ulong (id of user))
+        private EventHandler<(bool, ulong)> userChanged;
+
+
 
         private readonly Dictionary<ulong, DiscordUser> discordUsers = new Dictionary<ulong, DiscordUser>();
 
@@ -65,12 +70,33 @@ namespace DiscordUnfolded {
             return discordUsers.ContainsKey(userId) ? discordUsers[userId] : null; 
         }
 
+        public List<ulong> GetUserIDs() {
+            return discordUsers.Keys.ToList();
+        }
+
         public void SubscribeToChannelInfo(EventHandler<DiscordChannelInfo> handler) {
             channelInfoChanged += handler;
         }
 
         public void UnsubscribeFromChannelInfo(EventHandler<DiscordChannelInfo> handler) {
             channelInfoChanged -= handler;
+        }
+
+        public void SubscribeToUserChanged(EventHandler<(bool, ulong)> handler) {
+            userChanged += handler;
+        }
+
+        public void UnsubscribeFromUserChanged(EventHandler<(bool, ulong)> handler) {
+            userChanged -= handler;
+        }
+
+        public override string ToString() {
+            string result =  GetInfo().ToString();
+            result += "\n\t Users: ";
+            foreach(var item in discordUsers.Values) {
+                result += "\n\t\t" + item.ToString();
+            }
+            return result;
         }
     }
 

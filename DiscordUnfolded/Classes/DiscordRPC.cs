@@ -82,7 +82,7 @@ namespace DiscordUnfolded {
                     ws.Connect();
 
                     BarRaider.SdTools.Logger.Instance.LogMessage(TracingLevel.INFO, $"Connected to Discord RPC on port {port}");
-                    SendAuthorizeRequest();
+                    GetGuilds();
                     return;
                 }
                 catch(Exception) {
@@ -108,6 +108,17 @@ namespace DiscordUnfolded {
             if(response.cmd == "AUTHENTICATE") {
                 BarRaider.SdTools.Logger.Instance.LogMessage(TracingLevel.INFO, "Authenticated successfully! Now we can send RPC commands.");
             }
+        }
+
+        private void GetGuilds() {
+            var request = new {
+                nonce = Guid.NewGuid().ToString(),
+                args = new { },
+                cmd = "GET_GUILDS"
+            };
+
+            ws.Send(JsonConvert.SerializeObject(request));
+            BarRaider.SdTools.Logger.Instance.LogMessage(TracingLevel.INFO, "Sent authorization request...\n" + JsonConvert.SerializeObject(request));
         }
 
         private void SendAuthorizeRequest() {

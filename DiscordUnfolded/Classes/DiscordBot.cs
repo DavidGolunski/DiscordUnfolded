@@ -8,6 +8,7 @@ using BarRaider.SdTools;
 using Discord.WebSocket;
 using System.Linq;
 using System.Collections.Generic;
+using System.Dynamic;
 
 namespace DiscordUnfolded {
     internal class DiscordBot {
@@ -112,33 +113,7 @@ namespace DiscordUnfolded {
             }
 
             foreach(SocketGuild guild in client.Guilds) {
-                DiscordGuild discordGuild = new DiscordGuild(guild.Id, guild.Name, guild.IconUrl);
-                
-                foreach(SocketTextChannel textChannel in guild.TextChannels) {
-                    DiscordTextChannel discordTextChannel = new DiscordTextChannel(textChannel.Id, textChannel.Name, textChannel.Position);
-                    discordGuild.AddTextChannel(discordTextChannel);
-                }
-
-                foreach(SocketVoiceChannel voiceChannel in guild.VoiceChannels) {
-                    DiscordVoiceChannel discordVoiceChannel = new DiscordVoiceChannel(voiceChannel.Id, voiceChannel.Name, voiceChannel.Position);
-
-                    foreach(SocketGuildUser user in voiceChannel.Users) {
-                        VoiceStates voiceState = VoiceStates.DISCONNECTED;
-                        SocketVoiceState? socketVoiceState = user.VoiceState;
-
-                        if(socketVoiceState != null && socketVoiceState.HasValue) {
-                            voiceState = GetDiscordVoiceState(socketVoiceState.Value);
-                        }
-
-                        DiscordUser discordUser = new DiscordUser(user.Id, user.DisplayName, voiceState, user.GetDisplayAvatarUrl());
-                        discordVoiceChannel.AddUser(discordUser);
-                    }
-
-
-                    discordGuild.AddVoiceChannel(discordVoiceChannel);
-                }
-
-                DiscordGuild.AddGuild(discordGuild);
+                //await OnGuildAdded(guild);
             }
         }
         /*
@@ -146,7 +121,48 @@ namespace DiscordUnfolded {
          */
         private async Task OnGuildAdded(SocketGuild guild) {
             DiscordGuild discordGuild = new DiscordGuild(guild.Id, guild.Name, guild.IconUrl);
+
+
+            foreach(SocketTextChannel textChannel in guild.TextChannels) {
+                // i don't know why, but "guild.TextChannels" also returns voice channels. This filters them out
+                if(textChannel.GetType() != typeof(SocketTextChannel)) {
+                    continue;
+                }
+
+                DiscordTextChannel discordTextChannel = new DiscordTextChannel(textChannel.Id, textChannel.Name, textChannel.Position);
+                discordGuild.AddTextChannel(discordTextChannel);
+            }
+
+            foreach(SocketVoiceChannel voiceChannel in guild.VoiceChannels) {
+                // i don't know why, but "guild.VoiceChannels" also returns text channels. This filters them out
+                if(voiceChannel.GetType() != typeof(SocketVoiceChannel)) {
+                    continue;
+                }
+
+                DiscordVoiceChannel discordVoiceChannel = new DiscordVoiceChannel(voiceChannel.Id, voiceChannel.Name, voiceChannel.Position);
+
+                // add users
+                foreach(SocketGuildUser user in voiceChannel.Users) {
+                    VoiceStates voiceState = VoiceStates.DISCONNECTED;
+                    SocketVoiceState? socketVoiceState = user.VoiceState;
+
+                    if(socketVoiceState != null && socketVoiceState.HasValue) {
+                        voiceState = GetDiscordVoiceState(socketVoiceState.Value);
+                    }
+
+                    if(voiceState == VoiceStates.DISCONNECTED)
+                        continue;
+
+                    DiscordUser discordUser = new DiscordUser(user.Id, user.DisplayName, voiceState, user.GetDisplayAvatarUrl());
+                    discordVoiceChannel.AddUser(discordUser);
+                }
+
+                discordGuild.AddVoiceChannel(discordVoiceChannel);
+
+            }
+
             DiscordGuild.AddGuild(discordGuild);
+            Logger.Instance.LogMessage(TracingLevel.INFO, "Added Guild " + discordGuild.GuildName);
         }
 
         private async Task OnGuildRemoved(SocketGuild guild) {

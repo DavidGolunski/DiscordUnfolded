@@ -130,6 +130,7 @@
     <Compile Include="Actions\ChannelGridAction\ChannelGridAction.cs">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Compile>
+    <Compile Include="Actions\ChannelGridAction\ChannelGridInfo.cs" />
     <Compile Include="Actions\ChannelGridAction\ChannelGridSettings.cs">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Compile>

@@ -100,7 +100,6 @@ namespace DiscordUnfolded {
 
 
         private void UpdateButton(DiscordGuildInfo currentGuildInfo, DiscordGuildInfo selectedGuildInfo) {
-            Logger.Instance.LogMessage(TracingLevel.DEBUG, currentGuildInfo + " " + selectedGuildInfo);
             if(currentGuildInfo == null) {
                 Connection.SetDefaultImageAsync().GetAwaiter().GetResult();
                 return;

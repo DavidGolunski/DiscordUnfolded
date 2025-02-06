@@ -25,6 +25,10 @@ namespace DiscordUnfolded {
         public DiscordUserInfo GetInfo() {
             return new DiscordUserInfo(UserId, UserName, VoiceState, IconUrl);
         }
+
+        public override string ToString() {
+            return GetInfo().ToString();
+        }
     }
 
 }
