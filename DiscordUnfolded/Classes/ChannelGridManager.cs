@@ -36,7 +36,7 @@ namespace DiscordUnfolded {
                 int newValue = Math.Min(value, Width);
                 newValue = Math.Max(newValue, 0);
                 xOffset = newValue;
-                UpdateAllButtons();
+                UpdateChannelGrid();
             }
         }
         private int yOffset = 0;
@@ -49,7 +49,7 @@ namespace DiscordUnfolded {
                 int newValue = Math.Min(value, Height);
                 newValue = Math.Max(newValue, 0);
                 yOffset = newValue;
-                UpdateAllButtons();
+                UpdateChannelGrid();
             }
         }
 
@@ -84,9 +84,44 @@ namespace DiscordUnfolded {
             ServerBrowserManager.Instance.UnsubscribeFromSelectedGuild(OnSelectedGuildChanged);
         }
 
+        public void SubscribeToPosition(int xPos, int yPos, EventHandler<ChannelGridInfo> handler, bool instantlyUpdate = false) {
+            if(xPos < 0 || xPos >= width || yPos < 0 || yPos >= Height) {
+                Logger.Instance.LogMessage(TracingLevel.WARN, "ChannelButton wanted to subsribe to position (" + xPos + "," + yPos + ")");
+                return;
+            }
+            updateEvents[(xPos, yPos)] += handler;
+
+            if(!instantlyUpdate)
+                return;
+
+            handler.Invoke(this, GetChannelInfoForPosition(xPos, yPos));
+        }
+
+        public void UnsubscribeFromPosition(int xPos, int yPos, EventHandler<ChannelGridInfo> handler) {
+            if(!updateEvents.ContainsKey((xPos, yPos))) {
+                Logger.Instance.LogMessage(TracingLevel.WARN, "ChannelButton wanted to unsubsribe from position (" + xPos + "," + yPos + ")");
+                return;
+            }
+            updateEvents[(xPos, yPos)] -= handler;
+        }
+
+
         private void OnSelectedGuildChanged(object sender, DiscordGuildInfo discordGuildInfo) {
             if(discordGuildInfo == this.guildInfo)
                 return;
+
+            
+            // unsubscribe from all channels and users
+            if(guildInfo != null && DiscordGuild.GetGuild(guildInfo.GuildId) != null) {
+                DiscordGuild oldGuild = DiscordGuild.GetGuild(guildInfo.GuildId);
+
+                foreach(ulong oldTextChannelID in textChannels.Keys) {
+                    DiscordTextChannel oldTextChannel = oldGuild.GetTextChannel(oldTextChannelID);
+                    if(oldTextChannel == null)
+                        continue;
+                }
+            }
+
 
 
             guildInfo = discordGuildInfo;
@@ -107,12 +142,28 @@ namespace DiscordUnfolded {
 
             List<ulong> voiceChannelIDs = discordGuild.GetOrderedVoiceChannelIDs();
             foreach(ulong voiceChannelID in voiceChannelIDs) {
-                DiscordVoiceChannel voiceChannel = discordGuild.GetVoiceChannel(voiceChannelID);
 
             }
 
 
         }
+
+        public void OnTextChannelInfoChanged(object sender, DiscordChannelInfo discordChannelInfo) {
+            UpdateChannelGrid();
+        }
+        public void OnVoiceChannelInfoChanged(object sender, DiscordChannelInfo discordChannelInfo) {
+            UpdateChannelGrid();
+        }
+        public void OnVoiceChannelChanged(object sender, (bool wasAdded, ulong voiceChannelID) info) {
+            if(info.wasAdded) {
+                if(!voiceChannels.ContainsKey(info.voiceChannelID)) {
+                    return;
+                }
+                 
+            }
+        }
+
+
 
         public void UpdateChannelGrid() {
             Logger.Instance.LogMessage(TracingLevel.DEBUG, "ChannelGridManager called UpdateChannelGrid()");
@@ -200,26 +251,7 @@ namespace DiscordUnfolded {
             return channelGridRow[realXPos];
         }
 
-        public void SubscribeToPosition(int xPos, int yPos, EventHandler<ChannelGridInfo> handler, bool instantlyUpdate = false) {
-            if(xPos < 0 || xPos >= width || yPos < 0 || yPos >= Height) {
-                Logger.Instance.LogMessage(TracingLevel.WARN, "ChannelButton wanted to subsribe to position (" + xPos + "," + yPos + ")");
-                return;
-            }
-            updateEvents[(xPos, yPos)] += handler;
-
-            if(!instantlyUpdate)
-                return;
-
-            handler.Invoke(this, GetChannelInfoForPosition(xPos, yPos));
-        }
-
-        public void UnsubscribeFromPosition(int xPos, int yPos, EventHandler<ChannelGridInfo> handler) {
-            if(!updateEvents.ContainsKey((xPos, yPos))) {
-                Logger.Instance.LogMessage(TracingLevel.WARN, "ChannelButton wanted to unsubsribe from position (" + xPos + "," + yPos + ")");
-                return;
-            }
-            updateEvents[(xPos, yPos)] -= handler;
-        }
+        
 
 
 

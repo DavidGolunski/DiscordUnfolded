@@ -165,6 +165,7 @@
     <Compile Include="Classes\ChannelGridManager.cs">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Compile>
+    <Compile Include="Classes\DiscordOAuth2.cs" />
     <Compile Include="Classes\DiscordUser.cs">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Compile>

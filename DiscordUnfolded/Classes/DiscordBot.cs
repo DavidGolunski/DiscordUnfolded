@@ -153,6 +153,9 @@ namespace DiscordUnfolded {
                     if(voiceState == VoiceStates.DISCONNECTED)
                         continue;
 
+                    if(socketVoiceState.Value.VoiceChannel.Id != voiceChannel.Id)
+                        continue;
+
                     DiscordUser discordUser = new DiscordUser(user.Id, user.DisplayName, voiceState, user.GetDisplayAvatarUrl());
                     discordVoiceChannel.AddUser(discordUser);
                 }
