@@ -70,13 +70,13 @@ namespace DiscordUnfolded.Classes {
 
 
         // adds text to a 144x144 bitmap image. The number of characters in each "line" of the string must not exceed 8
-        public static Bitmap AddTextToBitmap(Bitmap bitmap, string input) {
+        public static Bitmap AddTextToBitmap(Bitmap bitmap, string input, Color textColor) {
             List<string> lines = input.Split('\n').ToList();
 
 
             using(Graphics graphics = Graphics.FromImage(bitmap))
             using(Font font = new Font("Arial", 20, FontStyle.Bold))
-            using(Brush brush = new SolidBrush(Color.White)) {
+            using(Brush brush = new SolidBrush(textColor)) {
                 // Enable anti-aliasing for smoother text
                 graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
                 graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;

@@ -18,6 +18,12 @@ namespace DiscordUnfolded {
             UserInfo = null;
         }
 
+        public ChannelGridInfo(DiscordChannelInfo channelInfo) {
+            ChannelInfo = channelInfo;
+            UsersInChannel = new List<ulong>();
+            UserInfo = null;
+        }
+
         public ChannelGridInfo(DiscordChannelInfo channelInfo, List<ulong> usersInChannel) {
             ChannelInfo = channelInfo;
             UsersInChannel = usersInChannel;
@@ -31,5 +37,29 @@ namespace DiscordUnfolded {
         }
 
 
+        public override string ToString() {
+            string message = string.Empty;
+            if(ChannelInfo != null) 
+                message += ChannelInfo.ToString();
+            else 
+                message += "null";
+            message += "[";
+            bool first = true;
+            foreach(ulong userId in UsersInChannel) {
+                if(first) {
+                    message += userId.ToString();
+                    first = false;
+                    continue;
+                }
+                message += ", " +  userId.ToString();
+            }
+            message += "]";
+
+            if(UserInfo != null)
+                message += UserInfo.ToString();
+            else
+                message += "null";
+            return message;
+        }
     }
 }

@@ -61,7 +61,7 @@ namespace DiscordUnfolded {
             if(bitmap == null) {
                 bitmap = ImageTools.GetBitmapFromFilePath("./Images/RoundRectangle@2x.png");
                 string title = ImageTools.SplitString(discordGuildInfo.GuildName, 7);
-                bitmap = ImageTools.AddTextToBitmap(bitmap, title);
+                bitmap = ImageTools.AddTextToBitmap(bitmap, title, Color.White);
             }
 
             Connection.SetImageAsync(bitmap).GetAwaiter().GetResult();

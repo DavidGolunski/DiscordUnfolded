@@ -111,11 +111,11 @@ namespace DiscordUnfolded {
             if(bitmap == null) {
                 bitmap = ImageTools.GetBitmapFromFilePath("./Images/RoundRectangle@2x.png");
                 string title = ImageTools.SplitString(currentGuildInfo.GuildName, 7);
-                bitmap = ImageTools.AddTextToBitmap(bitmap, title);
+                bitmap = ImageTools.AddTextToBitmap(bitmap, title, Color.White);
             }
 
             if(selectedGuildInfo != null && currentGuildInfo.Equals(selectedGuildInfo)) {
-                Bitmap highlightColorBitmap = ImageTools.GetResizedBitmapFromUrl("./Images/GreenHighlight@2x.png");
+                Bitmap highlightColorBitmap = ImageTools.GetResizedBitmapFromUrl("./Images/BigGreenHighlight@2x.png");
                 bitmap = ImageTools.MergeBitmaps(bitmap, highlightColorBitmap);
             }
 

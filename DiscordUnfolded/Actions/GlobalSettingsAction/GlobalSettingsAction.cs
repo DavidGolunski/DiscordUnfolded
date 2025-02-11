@@ -37,6 +37,7 @@ namespace DiscordUnfolded {
             Logger.Instance.LogMessage(TracingLevel.DEBUG, "Received Settings:  " + payload.Settings);
             Tools.AutoPopulateSettings(settings, payload.Settings);
             Logger.Instance.LogMessage(TracingLevel.DEBUG, "Received Settings:  " + settings.UserID + " " + settings.MaxChannelWidth);
+            ChannelGridManager.Instance.Width = settings.MaxChannelWidth;
             SaveSettings();
         }
 

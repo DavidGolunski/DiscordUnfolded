@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using DiscordUnfolded.DiscordStructure;
+using Discord;
 
 namespace DiscordUnfolded {
 
@@ -136,6 +137,9 @@ namespace DiscordUnfolded {
             }
 
 
+            this.selectedGuild = null;
+
+
             this.selectedGuild = newGuild;
 
 
@@ -196,9 +200,6 @@ namespace DiscordUnfolded {
                 DiscordVoiceChannel voiceChannel = selectedGuild.GetVoiceChannel(voiceChannelID);
 
                 channelGrid.Add(new List<ChannelGridInfo>());
-                if(voiceChannel == null)
-                    continue;
-
                 List<ulong> userIDsInVoiceChannel = voiceChannel.GetUserIDs();
 
                 // add the voice channel info in first position
@@ -223,6 +224,17 @@ namespace DiscordUnfolded {
                 }
             }
 
+            List<ulong> textChannelIDs = selectedGuild.GetOrderedTextChannelIDs();
+            for(int i = 0; i < textChannelIDs.Count; i++) {
+                if(i % Width == 0) {
+                    channelGrid.Add(new List<ChannelGridInfo>());
+                }
+                DiscordTextChannel textChannel = selectedGuild.GetTextChannel(textChannelIDs[i]);
+                channelGrid.Last().Add(new ChannelGridInfo(textChannel.GetInfo()));
+
+            }
+
+
             UpdateAllButtons();
         }
 
@@ -236,15 +248,14 @@ namespace DiscordUnfolded {
 
         // sends out an update event to all buttons
         private void UpdateAllButtons() {
-            for(int y = 0; y < Height; y++) {
-                for(int x = 0; x < Width; x++) {
-                    UpdateButton(x, y);
-                }
+            foreach((int xPos, int yPos) coordinates in updateEvents.Keys) {
+                UpdateButton(coordinates.xPos, coordinates.yPos);
             }
         }
 
         // sends out an update event to buttons at the specified position
         private void UpdateButton(int xPos, int yPos) {
+            Logger.Instance.LogMessage(TracingLevel.DEBUG, "ChannelGridManager.UpdatingButton: (" + xPos + ", " + yPos + ") " + GetChannelInfoForPosition(xPos, yPos) );
             updateEvents[(xPos, yPos)]?.Invoke(this, GetChannelInfoForPosition(xPos, yPos)); 
         }
 
