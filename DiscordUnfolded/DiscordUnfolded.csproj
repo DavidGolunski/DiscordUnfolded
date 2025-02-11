@@ -166,19 +166,19 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Compile>
     <Compile Include="Classes\DiscordOAuth2.cs" />
-    <Compile Include="Classes\DiscordUser.cs">
+    <Compile Include="Classes\DiscordStructure\DiscordUser.cs">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Compile>
-    <Compile Include="Classes\DiscordVoiceChannel.cs">
+    <Compile Include="Classes\DiscordStructure\DiscordVoiceChannel.cs">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Compile>
-    <Compile Include="Classes\DiscordTextChannel.cs">
+    <Compile Include="Classes\DiscordStructure\DiscordTextChannel.cs">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Compile>
-    <Compile Include="Classes\DiscordChannelInfo.cs">
+    <Compile Include="Classes\DiscordStructure\DiscordChannelInfo.cs">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Compile>
-    <Compile Include="Classes\DiscordGuild.cs">
+    <Compile Include="Classes\DiscordStructure\DiscordGuild.cs">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Compile>
     <Compile Include="Classes\DiscordRPC.cs">
@@ -187,10 +187,10 @@
     <Compile Include="Classes\DiscordBot.cs">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Compile>
-    <Compile Include="Classes\DiscordGuildInfo.cs">
+    <Compile Include="Classes\DiscordStructure\DiscordGuildInfo.cs">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Compile>
-    <Compile Include="Classes\DiscordUserInfo.cs">
+    <Compile Include="Classes\DiscordStructure\DiscordUserInfo.cs">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Compile>
     <Compile Include="Classes\ImageTools.cs">

@@ -9,6 +9,8 @@ using Discord.WebSocket;
 using System.Linq;
 using System.Collections.Generic;
 using System.Dynamic;
+using DiscordUnfolded.DiscordStructure;
+using Discord;
 
 namespace DiscordUnfolded {
     internal class DiscordBot {
@@ -111,10 +113,10 @@ namespace DiscordUnfolded {
                 Logger.Instance.LogMessage(TracingLevel.WARN, "Bot is not in any guilds.");
                 return;
             }
-
+            /* The "OnGuildAdded" functions is called for each guild when the bot starts up anyways
             foreach(SocketGuild guild in client.Guilds) {
-                //await OnGuildAdded(guild);
-            }
+                await OnGuildAdded(guild);
+            }*/
         }
         /*
          * Guilds
@@ -122,25 +124,22 @@ namespace DiscordUnfolded {
         private async Task OnGuildAdded(SocketGuild guild) {
             DiscordGuild discordGuild = new DiscordGuild(guild.Id, guild.Name, guild.IconUrl);
 
-
             foreach(SocketTextChannel textChannel in guild.TextChannels) {
                 // i don't know why, but "guild.TextChannels" also returns voice channels. This filters them out
-                if(textChannel.GetType() != typeof(SocketTextChannel)) {
+                if(textChannel.ChannelType.ToString() != "Text") {
                     continue;
                 }
 
-                DiscordTextChannel discordTextChannel = new DiscordTextChannel(textChannel.Id, textChannel.Name, textChannel.Position);
+                DiscordTextChannel discordTextChannel = new DiscordTextChannel(discordGuild, textChannel.Id, textChannel.Name, textChannel.Position);
                 discordGuild.AddTextChannel(discordTextChannel);
             }
-
             foreach(SocketVoiceChannel voiceChannel in guild.VoiceChannels) {
                 // i don't know why, but "guild.VoiceChannels" also returns text channels. This filters them out
-                if(voiceChannel.GetType() != typeof(SocketVoiceChannel)) {
+                if(voiceChannel.ChannelType.ToString() != "Voice") {
                     continue;
                 }
 
-                DiscordVoiceChannel discordVoiceChannel = new DiscordVoiceChannel(voiceChannel.Id, voiceChannel.Name, voiceChannel.Position);
-
+                DiscordVoiceChannel discordVoiceChannel = new DiscordVoiceChannel(discordGuild, voiceChannel.Id, voiceChannel.Name, voiceChannel.Position);
                 // add users
                 foreach(SocketGuildUser user in voiceChannel.Users) {
                     VoiceStates voiceState = VoiceStates.DISCONNECTED;
@@ -156,13 +155,14 @@ namespace DiscordUnfolded {
                     if(socketVoiceState.Value.VoiceChannel.Id != voiceChannel.Id)
                         continue;
 
-                    DiscordUser discordUser = new DiscordUser(user.Id, user.DisplayName, voiceState, user.GetDisplayAvatarUrl());
+                    DiscordUser discordUser = new DiscordUser(discordVoiceChannel, user.Id, user.DisplayName, voiceState, user.GetDisplayAvatarUrl());
                     discordVoiceChannel.AddUser(discordUser);
                 }
 
                 discordGuild.AddVoiceChannel(discordVoiceChannel);
 
             }
+            DiscordGuild.RemoveGuild(discordGuild.GuildId); // remove guild if it already exists
 
             DiscordGuild.AddGuild(discordGuild);
             Logger.Instance.LogMessage(TracingLevel.INFO, "Added Guild " + discordGuild.GuildName);
@@ -174,10 +174,21 @@ namespace DiscordUnfolded {
 
         private async Task OnGuildUpdated(SocketGuild guild, SocketGuild newGuild) {
             if(guild.Name != newGuild.Name) {
-                DiscordGuild.GetGuild(guild.Id).GuildName = newGuild.Name;
+                DiscordGuild discordGuild = DiscordGuild.GetGuild(guild.Id);
+                if(discordGuild == null) {
+                    Logger.Instance.LogMessage(TracingLevel.WARN, "DiscordBot.OnGuildUpdated: Guild with ID " + guild.Id + " was not found");
+                    return;
+                }
+                discordGuild.GuildName = newGuild.Name;
             }
+
             if(guild.IconUrl != newGuild.IconUrl) {
-                DiscordGuild.GetGuild(guild.Id).IconUrl = newGuild.IconUrl;
+                DiscordGuild discordGuild = DiscordGuild.GetGuild(guild.Id);
+                if(discordGuild == null) {
+                    Logger.Instance.LogMessage(TracingLevel.WARN, "DiscordBot.OnGuildUpdated: Guild with ID " + guild.Id + " was not found");
+                    return;
+                }
+                discordGuild.IconUrl = newGuild.IconUrl;
             }
         }
 
@@ -185,27 +196,27 @@ namespace DiscordUnfolded {
          * Channels
          */
         private async Task OnChannelAdded(SocketChannel channel) {
-            if(channel is SocketTextChannel) {
+            if(channel.ChannelType.ToString() == "Text") {
                 SocketTextChannel textChannel = channel as SocketTextChannel;
 
                 DiscordGuild guild = DiscordGuild.GetGuild(textChannel.Guild.Id);
                 if(guild == null) return;
 
-                guild.AddTextChannel(new DiscordTextChannel(textChannel.Id, textChannel.Name, textChannel.Position));
+                guild.AddTextChannel(new DiscordTextChannel(guild, textChannel.Id, textChannel.Name, textChannel.Position));
             }
-            else if(channel is SocketVoiceChannel) {
+            else if(channel.ChannelType.ToString() == "Voice") {
                 SocketVoiceChannel voiceChannel = channel as SocketVoiceChannel;
 
                 DiscordGuild guild = DiscordGuild.GetGuild(voiceChannel.Guild.Id);
                 if(guild == null)
                     return;
 
-                guild.AddVoiceChannel(new DiscordVoiceChannel(voiceChannel.Id, voiceChannel.Name, voiceChannel.Position));
+                guild.AddVoiceChannel(new DiscordVoiceChannel(guild, voiceChannel.Id, voiceChannel.Name, voiceChannel.Position));
             }
         }
 
         private async Task OnChannelRemoved(SocketChannel channel) {
-            if(channel is SocketTextChannel) {
+            if(channel.ChannelType.ToString() == "Text") {
                 SocketTextChannel textChannel = channel as SocketTextChannel;
 
                 DiscordGuild guild = DiscordGuild.GetGuild(textChannel.Guild.Id);
@@ -214,7 +225,7 @@ namespace DiscordUnfolded {
 
                 guild.RemoveTextChannel(textChannel.Id);
             }
-            else if(channel is SocketVoiceChannel) {
+            else if(channel.ChannelType.ToString() == "Voice") {
                 SocketVoiceChannel voiceChannel = channel as SocketVoiceChannel;
 
                 DiscordGuild guild = DiscordGuild.GetGuild(voiceChannel.Guild.Id);
@@ -226,13 +237,14 @@ namespace DiscordUnfolded {
         }
 
         private async Task OnChannelUpdated(SocketChannel channel, SocketChannel newChannel) {
-            Logger.Instance.LogMessage(TracingLevel.DEBUG, channel.ChannelType.ToString() + " --- " + channel.GetType().ToString());
-
-            if(channel is SocketTextChannel) {
+            if(newChannel.ChannelType.ToString() == "Text") { // "Category" is also an option ToDo
                 SocketTextChannel textChannel = channel as SocketTextChannel;
                 SocketTextChannel newTextChannel = newChannel as SocketTextChannel;
 
                 DiscordGuild guild = DiscordGuild.GetGuild(textChannel.Guild.Id);
+                if(guild == null) 
+                    return;
+
                 DiscordTextChannel discordTextChannel = guild.GetTextChannel(textChannel.Id);
                 if(discordTextChannel == null) return;
 
@@ -244,11 +256,14 @@ namespace DiscordUnfolded {
                 }
 
             }
-            else if(channel is SocketVoiceChannel) {
+            else if(newChannel.ChannelType.ToString() == "Voice") {
                 SocketVoiceChannel voiceChannel = channel as SocketVoiceChannel;
                 SocketVoiceChannel newVoiceChannel = newChannel as SocketVoiceChannel;
 
                 DiscordGuild guild = DiscordGuild.GetGuild(voiceChannel.Guild.Id);
+                if(guild == null)
+                    return;
+
                 DiscordVoiceChannel discordVoiceChannel = guild.GetVoiceChannel(voiceChannel.Id);
                 if(discordVoiceChannel == null) return;
 
@@ -274,6 +289,7 @@ namespace DiscordUnfolded {
             
             SocketGuildUser socketGuildUser = socketUser as SocketGuildUser;
             DiscordGuild discordGuild = DiscordGuild.GetGuild(socketGuildUser.Guild.Id);
+            if(discordGuild == null) return;
 
             // handle disconnects
             if(socketVoiceState.VoiceChannel != null && newSocketVoiceState.VoiceChannel == null) {
@@ -287,8 +303,8 @@ namespace DiscordUnfolded {
 
             // handle voice channel joins
             if(socketVoiceState.VoiceChannel == null && newSocketVoiceState.VoiceChannel != null) {
-                DiscordUser newDiscordUser = new DiscordUser(socketGuildUser.Id, socketGuildUser.DisplayName, newVoiceState, socketGuildUser.GetDisplayAvatarUrl());
-                newDiscordVoiceChannel.AddUser(newDiscordUser);
+                DiscordUser newDiscordUser = new DiscordUser(newDiscordVoiceChannel, socketGuildUser.Id, socketGuildUser.DisplayName, newVoiceState, socketGuildUser.GetDisplayAvatarUrl());
+                newDiscordVoiceChannel?.AddUser(newDiscordUser);
                 return;
             }
 
@@ -298,7 +314,7 @@ namespace DiscordUnfolded {
                 discordGuild.GetVoiceChannel(socketVoiceState.VoiceChannel.Id).RemoveUser(socketGuildUser.Id);
 
                 // add user to new voice channel
-                DiscordUser newDiscordUser = new DiscordUser(socketGuildUser.Id, socketGuildUser.DisplayName, newVoiceState, socketGuildUser.GetDisplayAvatarUrl());
+                DiscordUser newDiscordUser = new DiscordUser(newDiscordVoiceChannel, socketGuildUser.Id, socketGuildUser.DisplayName, newVoiceState, socketGuildUser.GetDisplayAvatarUrl());
                 newDiscordVoiceChannel.AddUser(newDiscordUser);
                 return;
             }

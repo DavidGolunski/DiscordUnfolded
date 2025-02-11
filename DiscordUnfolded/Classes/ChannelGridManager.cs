@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using DiscordUnfolded.DiscordStructure;
 
 namespace DiscordUnfolded {
 
@@ -22,6 +23,8 @@ namespace DiscordUnfolded {
                 if(width == value ) 
                     return;
                 width = value;
+
+                UpdateChannelGrid();
             }
         }
         private const int Height = 4;
@@ -55,18 +58,12 @@ namespace DiscordUnfolded {
 
         private readonly Dictionary<(int, int), EventHandler<ChannelGridInfo>> updateEvents = new Dictionary<(int, int), EventHandler<ChannelGridInfo>>();
 
-        private DiscordGuildInfo guildInfo = null;
-        private readonly Dictionary<ulong, DiscordChannelInfo> voiceChannels = new Dictionary<ulong, DiscordChannelInfo>();
-        private readonly Dictionary<ulong, DiscordChannelInfo> textChannels = new Dictionary<ulong, DiscordChannelInfo>();
-        private readonly Dictionary<(ulong, ulong), DiscordUserInfo> userInfos = new Dictionary<(ulong, ulong), DiscordUserInfo>();
+        private DiscordGuild selectedGuild = null;
 
 
 
         // a representation of all information that is available from a guild on a grid
         private readonly List<List<ChannelGridInfo>> channelGrid = new List<List<ChannelGridInfo>>();
-
-
-
 
 
         private ChannelGridManager() {
@@ -84,6 +81,11 @@ namespace DiscordUnfolded {
             ServerBrowserManager.Instance.UnsubscribeFromSelectedGuild(OnSelectedGuildChanged);
         }
 
+
+
+        /*
+         * Channel Buttons can subsribe to a static position on the streamdeck here. They will be updated with the mapped dynamic information (which takes offsets into account)
+         */
         public void SubscribeToPosition(int xPos, int yPos, EventHandler<ChannelGridInfo> handler, bool instantlyUpdate = false) {
             if(xPos < 0 || xPos >= width || yPos < 0 || yPos >= Height) {
                 Logger.Instance.LogMessage(TracingLevel.WARN, "ChannelButton wanted to subsribe to position (" + xPos + "," + yPos + ")");
@@ -105,85 +107,93 @@ namespace DiscordUnfolded {
             updateEvents[(xPos, yPos)] -= handler;
         }
 
+        /*
+         * Functions called by subscribed events
+         */
 
+        // unsubscribe from previous guild and subscribe to all events in the new guild
         private void OnSelectedGuildChanged(object sender, DiscordGuildInfo discordGuildInfo) {
-            if(discordGuildInfo == this.guildInfo)
+            // check that actually something has changed
+            if(selectedGuild == null && discordGuildInfo == null)
                 return;
 
-            
-            // unsubscribe from all channels and users
-            if(guildInfo != null && DiscordGuild.GetGuild(guildInfo.GuildId) != null) {
-                DiscordGuild oldGuild = DiscordGuild.GetGuild(guildInfo.GuildId);
+            DiscordGuild newGuild = DiscordGuild.GetGuild(discordGuildInfo.GuildId);
 
-                foreach(ulong oldTextChannelID in textChannels.Keys) {
-                    DiscordTextChannel oldTextChannel = oldGuild.GetTextChannel(oldTextChannelID);
-                    if(oldTextChannel == null)
-                        continue;
-                }
+            if(selectedGuild == null && newGuild == null)
+                return;
+
+
+            // unsubscribe from all channels and users in the old guild
+            if(this.selectedGuild != null) {
+                this.selectedGuild.OnTextChannelInfoChanged -= OnTextChannelInfoChanged;
+                this.selectedGuild.OnTextChannelChanged -= OnTextChannelChanged;
+
+                this.selectedGuild.OnVoiceChannelInfoChanged -= OnVoiceChannelInfoChanged;
+                this.selectedGuild.OnTextChannelChanged -= OnTextChannelChanged;
+
+                this.selectedGuild.OnUserInfoChanged -= OnUserInfoChanged;
+                this.selectedGuild.OnUserChanged -= OnUserChanged;
             }
 
 
+            this.selectedGuild = newGuild;
 
-            guildInfo = discordGuildInfo;
 
-            voiceChannels.Clear();
-            textChannels.Clear();
-            userInfos.Clear();
-
-            foreach(var updateEvent in updateEvents.Values) {
-                updateEvent?.Invoke(this, new ChannelGridInfo());
-            }
-
-            if(guildInfo == null) {
+            // null handling
+            if(selectedGuild == null) {
+                UpdateChannelGrid();
                 return;
             }
 
-            DiscordGuild discordGuild = DiscordGuild.GetGuild(guildInfo.GuildId);
+            // subscribe to events in new guild
+            this.selectedGuild.OnTextChannelInfoChanged += OnTextChannelInfoChanged;
+            this.selectedGuild.OnTextChannelChanged += OnTextChannelChanged;
 
-            List<ulong> voiceChannelIDs = discordGuild.GetOrderedVoiceChannelIDs();
-            foreach(ulong voiceChannelID in voiceChannelIDs) {
+            this.selectedGuild.OnVoiceChannelInfoChanged += OnVoiceChannelInfoChanged;
+            this.selectedGuild.OnTextChannelChanged += OnTextChannelChanged;
 
-            }
+            this.selectedGuild.OnUserInfoChanged += OnUserInfoChanged;
+            this.selectedGuild.OnUserChanged += OnUserChanged;
 
-
-        }
-
-        public void OnTextChannelInfoChanged(object sender, DiscordChannelInfo discordChannelInfo) {
             UpdateChannelGrid();
         }
-        public void OnVoiceChannelInfoChanged(object sender, DiscordChannelInfo discordChannelInfo) {
+
+        private void OnTextChannelInfoChanged(object sender, DiscordChannelInfo discordChannelInfo) {
+            UpdateChannelGrid();
+        }
+        private void OnTextChannelChanged(object sender, (bool wasAdded, ulong voiceChannelID) info) {
+            UpdateChannelGrid();
+        }
+
+        private void OnVoiceChannelInfoChanged(object sender, DiscordChannelInfo discordChannelInfo) {
             UpdateChannelGrid();
         }
         public void OnVoiceChannelChanged(object sender, (bool wasAdded, ulong voiceChannelID) info) {
-            if(info.wasAdded) {
-                if(!voiceChannels.ContainsKey(info.voiceChannelID)) {
-                    return;
-                }
-                 
-            }
+            UpdateChannelGrid();
+        }
+
+        public void OnUserInfoChanged(object sender, DiscordUserInfo discordUserInfo) { 
+            UpdateChannelGrid(); 
+        }
+        public void OnUserChanged(object sender, (bool wasAdded, ulong userId) info) {
+            UpdateChannelGrid();
         }
 
 
-
+        /*
+         * Updating information and buttons
+         */
         public void UpdateChannelGrid() {
-            Logger.Instance.LogMessage(TracingLevel.DEBUG, "ChannelGridManager called UpdateChannelGrid()");
             ClearChannelGrid();
 
-            if(guildInfo == null) {
+            if(selectedGuild == null) {
                 UpdateAllButtons();
                 return;
             }
 
-            DiscordGuild discordGuild = DiscordGuild.GetGuild(guildInfo.GuildId);
-            if(discordGuild == null) {
-                UpdateAllButtons();
-                return;
-            }
-
-            List<ulong> voiceChannelIDs = discordGuild.GetOrderedVoiceChannelIDs();
-            Logger.Instance.LogMessage(TracingLevel.DEBUG, "ChannelGridManager voiceChannelIds " + voiceChannelIDs.Count);
+            List<ulong> voiceChannelIDs = selectedGuild.GetOrderedVoiceChannelIDs();
             foreach(ulong voiceChannelID in voiceChannelIDs) {
-                DiscordVoiceChannel voiceChannel = discordGuild.GetVoiceChannel(voiceChannelID);
+                DiscordVoiceChannel voiceChannel = selectedGuild.GetVoiceChannel(voiceChannelID);
 
                 channelGrid.Add(new List<ChannelGridInfo>());
                 if(voiceChannel == null)
@@ -224,6 +234,7 @@ namespace DiscordUnfolded {
             channelGrid.Clear();
         }
 
+        // sends out an update event to all buttons
         private void UpdateAllButtons() {
             for(int y = 0; y < Height; y++) {
                 for(int x = 0; x < Width; x++) {
@@ -232,10 +243,13 @@ namespace DiscordUnfolded {
             }
         }
 
+        // sends out an update event to buttons at the specified position
         private void UpdateButton(int xPos, int yPos) {
             updateEvents[(xPos, yPos)]?.Invoke(this, GetChannelInfoForPosition(xPos, yPos)); 
         }
 
+
+        // returns what information is currently saved for a specific static x and y position
         private ChannelGridInfo GetChannelInfoForPosition(int xPos, int yPos) {
             int realXPos = xPos + XOffset;
             int realYPos = yPos + YOffset;
@@ -250,10 +264,6 @@ namespace DiscordUnfolded {
 
             return channelGridRow[realXPos];
         }
-
-        
-
-
 
     }
 }

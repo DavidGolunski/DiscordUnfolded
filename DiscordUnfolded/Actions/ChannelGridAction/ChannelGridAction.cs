@@ -10,6 +10,7 @@ using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using DiscordUnfolded.DiscordStructure;
 
 namespace DiscordUnfolded {
     [PluginActionId("com.davidgolunski.discordunfolded.channelgridaction")]
@@ -66,7 +67,14 @@ namespace DiscordUnfolded {
             SaveSettings();
         }
 
+        private Task SaveSettings() {
+            return Connection.SetSettingsAsync(JObject.FromObject(settings));
+        }
 
+
+        /*
+         * Update Button Logic
+         */
         public void UpdateButton(object sender, ChannelGridInfo newChannelGridInfo) {
             if(newChannelGridInfo.Equals(this.channelGridInfo))
                 return;
@@ -84,6 +92,7 @@ namespace DiscordUnfolded {
             Connection.SetDefaultImageAsync().GetAwaiter().GetResult();
         }
 
+        // update button with channel information
         private void UpdateButton(DiscordChannelInfo channelInfo) {
             if(channelInfo == null) {
                 Connection.SetDefaultImageAsync().GetAwaiter().GetResult();
@@ -99,6 +108,7 @@ namespace DiscordUnfolded {
             return;
         }
 
+        // update button with user information
         private void UpdateButton(DiscordUserInfo userInfo) {
             if(userInfo == null) {
                 Connection.SetDefaultImageAsync().GetAwaiter().GetResult();
@@ -115,8 +125,6 @@ namespace DiscordUnfolded {
         }
 
 
-        private Task SaveSettings() {
-            return Connection.SetSettingsAsync(JObject.FromObject(settings));
-        }
+       
     }
 }

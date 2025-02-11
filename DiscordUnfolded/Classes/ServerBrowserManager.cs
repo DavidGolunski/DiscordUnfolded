@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms.VisualStyles;
+using DiscordUnfolded.DiscordStructure;
 
 namespace DiscordUnfolded {
     public class ServerBrowserManager {
@@ -60,21 +61,19 @@ namespace DiscordUnfolded {
                 updateEvents[i] = null;
             }
 
-            DiscordGuild.SubscribeToGuildsChanged(OnGuildListChanged);
+            DiscordGuild.OnGuildListChanged += OnGuildListChanged;
             OnGuildListChanged(null, DiscordGuild.Guilds);
-            Logger.Instance.LogMessage(TracingLevel.DEBUG, "ServerBrowser Created");
         }
 
         ~ServerBrowserManager() {
-            Logger.Instance.LogMessage(TracingLevel.DEBUG, "ServerBrowser Destroyed");
-            DiscordGuild.UnsubscribeFromGuildsChanged(OnGuildListChanged);
+            DiscordGuild.OnGuildListChanged -= OnGuildListChanged;
         }
 
         // called automatically when the available Discord Guilds have changed
         private void OnGuildListChanged(object sender, List<DiscordGuild> newGuildList) {
 
             foreach (var guild in guildList) {
-                guild?.UnsubscribeFromGuildInfo(OnGuildInfoChanged);
+                guild.OnGuildInfoChanged -= OnGuildInfoChanged;
             }
 
             guildList.Clear();
@@ -82,7 +81,7 @@ namespace DiscordUnfolded {
 
             // if the info or the name has changed the buttons will instantly be updated
             foreach(var guild in newGuildList) {
-                guild.SubscribeToGuildInfo(OnGuildInfoChanged);
+                guild.OnGuildInfoChanged += OnGuildInfoChanged;
             }
 
             UpdateAllPositions();

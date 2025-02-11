@@ -10,6 +10,7 @@ using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using DiscordUnfolded.DiscordStructure;
 
 namespace DiscordUnfolded {
     [PluginActionId("com.davidgolunski.discordunfolded.servergridaction")]

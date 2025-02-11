@@ -1,0 +1,84 @@
+﻿using Discord;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace DiscordUnfolded.DiscordStructure {
+
+    public class DiscordUser : IDisposable {
+
+        private DiscordVoiceChannel voiceChannel;
+        public readonly ulong UserId;
+
+        private string userName;
+        public string UserName {
+            get => userName;
+            set {
+                if(userName == value) 
+                    return;
+                userName = value;
+                // invoke guild event from this level
+                voiceChannel.GetGuild().OnUserInfoChanged?.Invoke(this, GetInfo());
+            }
+        }
+
+        private VoiceStates voiceState;
+        public VoiceStates VoiceState {
+            get => voiceState;
+            set {
+                if(voiceState == value)
+                    return;
+                voiceState = value;
+                // invoke guild event from this level
+                voiceChannel.GetGuild().OnUserInfoChanged?.Invoke(this, GetInfo());
+            }
+        }
+
+        private string iconUrl;
+        public string IconUrl {
+            get => iconUrl;
+            set {
+                if(iconUrl == value)
+                    return;
+                iconUrl = value;
+                // invoke guild event from this level
+                voiceChannel.GetGuild().OnUserInfoChanged?.Invoke(this, GetInfo());
+            }
+        }
+
+
+
+
+        public DiscordUser(DiscordVoiceChannel voiceChannel, ulong userId, string userName, VoiceStates voiceState, string iconUrl) {
+            Debug.Assert(voiceChannel != null);
+            Debug.Assert(userId != 0);
+            this.voiceChannel = voiceChannel;
+            this.UserId = userId;
+            this.userName = userName;
+            this.voiceState = voiceState;
+            this.iconUrl = iconUrl;
+        }
+
+        public void Dispose() {
+            voiceChannel = null;
+        }
+
+        public DiscordUserInfo GetInfo() {
+            return new DiscordUserInfo(UserId, UserName, VoiceState, IconUrl);
+        }
+
+        public DiscordVoiceChannel GetVoiceChannel() {
+            return voiceChannel;
+        }
+
+        public override string ToString() {
+            return GetInfo().ToString();
+        }
+
+        
+    }
+
+}

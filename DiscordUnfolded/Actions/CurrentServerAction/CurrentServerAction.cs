@@ -11,6 +11,7 @@ using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using DiscordUnfolded.DiscordStructure;
 
 namespace DiscordUnfolded {
     [PluginActionId("com.davidgolunski.discordunfolded.currentserveraction")]
@@ -29,16 +30,6 @@ namespace DiscordUnfolded {
 
         public override void KeyPressed(KeyPayload payload) {
             ChannelGridManager.Instance.UpdateChannelGrid();
-
-            if(currentGuildInfo == null) {
-                Logger.Instance.LogMessage(TracingLevel.DEBUG, "CurrentServerAction: currentGuildInfo is null");
-            }
-            else if(DiscordGuild.GetGuild(currentGuildInfo.GuildId) == null) {
-                Logger.Instance.LogMessage(TracingLevel.DEBUG, "CurrentServerAction: Guild with Name " + currentGuildInfo.GuildName + " is null");
-            }
-            else {
-                Logger.Instance.LogMessage(TracingLevel.DEBUG, "CurrentServerAction: " + DiscordGuild.GetGuild(currentGuildInfo.GuildId).ToString());
-            }
         }
 
         public override void KeyReleased(KeyPayload payload) { }
