@@ -12,6 +12,9 @@ using System.Text;
 using System.Threading.Tasks;
 using DiscordUnfolded.DiscordStructure;
 using System.Drawing.Imaging;
+using System.Windows.Forms;
+using WindowsInput;
+using WindowsInput.Native;
 
 namespace DiscordUnfolded {
     [PluginActionId("com.davidgolunski.discordunfolded.channelgridaction")]
@@ -23,6 +26,8 @@ namespace DiscordUnfolded {
 
         private ChannelGridInfo channelGridInfo = null;
         private ulong lastUsedUserID = 0; // this contains the last UserID with which the button was updated
+
+        private DateTime keyPressedTimestamp = DateTime.MaxValue;
 
 
         public ChannelGridAction(SDConnection connection, InitialPayload payload) : base(connection, payload) {
@@ -45,16 +50,58 @@ namespace DiscordUnfolded {
         }
 
         public override void KeyPressed(KeyPayload payload) {
-            
+            keyPressedTimestamp = DateTime.Now;
         }
 
-        public override void KeyReleased(KeyPayload payload) { }
+        public override void KeyReleased(KeyPayload payload) {
+            double timeDiff = (DateTime.Now - keyPressedTimestamp).TotalMilliseconds;
+            // timeDiff can only be lower than 0 if the "key" was never pressed in the first place or the "OnTick" method already has triggered the action automatically
+            if(timeDiff < 0) {
+                keyPressedTimestamp = DateTime.MaxValue;
+                return;
+            }
+
+            // if the button is the current user, mute or unmute the user
+            if(channelGridInfo?.UserInfo?.UserId == globalSettings.UserID) {
+
+                InputSimulator sim = new InputSimulator();
+
+                // deafen if the button was hold down for longer than a second of the user is currently deafened
+                if(timeDiff > 1000 || channelGridInfo.UserInfo.VoiceState == VoiceStates.DEAFENED) {
+                    sim.Keyboard.KeyDown(VirtualKeyCode.F13);
+                    sim.Keyboard.KeyDown(VirtualKeyCode.F15);
+
+                    sim.Keyboard.KeyUp(VirtualKeyCode.F13);
+                    sim.Keyboard.KeyUp(VirtualKeyCode.F15);
+                }
+                // mute if the button was hold down less than a second
+                else {
+                    sim.Keyboard.KeyDown(VirtualKeyCode.F13);
+                    sim.Keyboard.KeyDown(VirtualKeyCode.F14);
+
+                    sim.Keyboard.KeyUp(VirtualKeyCode.F13);
+                    sim.Keyboard.KeyUp(VirtualKeyCode.F14);
+                }
+            }
+
+            keyPressedTimestamp = DateTime.MaxValue;
+        }
 
         public override void OnTick() { }
 
         public override void ReceivedGlobalSettings(ReceivedGlobalSettingsPayload payload) {
             Tools.AutoPopulateSettings(globalSettings, payload.Settings);
 
+            int oldXPos = settings.XPos;
+            settings.UpdateXPosDropdown(globalSettings.MaxChannelWidth);
+            
+
+            if(oldXPos != settings.XPos) {
+                ChannelGridManager.Instance.UnsubscribeFromPosition(oldXPos, settings.YPos, UpdateButton);
+                ChannelGridManager.Instance.SubscribeToPosition(settings.XPos, settings.YPos, UpdateButton, true);
+            }
+            ChannelGridManager.Instance.Width = globalSettings.MaxChannelWidth;
+            SaveSettings();
 
             UpdateButton(null, this.channelGridInfo);  
         }

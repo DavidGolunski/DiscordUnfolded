@@ -34,33 +34,43 @@ namespace DiscordUnfolded {
         public int XOffset {
             get => xOffset;
             set {
-                if(xOffset == value)
-                    return;
-
                 int newValue = Math.Min(value, Width);
                 newValue = Math.Max(newValue, 0);
+
+                if(xOffset == newValue)
+                    return;
                 xOffset = newValue;
                 UpdateChannelGrid();
             }
         }
+
         private int yOffset = 0;
         public int YOffset {
             get => yOffset;
             set {
-                if(yOffset == value)
-                    return;
-
-                int newValue = Math.Min(value, Height);
+                int newValue = Math.Min(value, maxYOffset);
                 newValue = Math.Max(newValue, 0);
+
+                if(yOffset == newValue)
+                    return;
                 yOffset = newValue;
                 UpdateChannelGrid();
             }
         }
 
+        // this is to calculate what the max yOffset should be. We do not want the user to scroll into endlessness, but also do not want to prevent the users to see any data
+        private int maxYOffset {
+            get {
+                int maxSubscribedButtonYPos = 0;
+                foreach((int xPos, int yPos) buttonCoordinates in updateEvents.Keys) {
+                    maxSubscribedButtonYPos = Math.Max(maxSubscribedButtonYPos, buttonCoordinates.yPos);
+                }
+                return channelGrid.Count - maxSubscribedButtonYPos - 1;
+            }
+        }
+
         private readonly Dictionary<(int, int), EventHandler<ChannelGridInfo>> updateEvents = new Dictionary<(int, int), EventHandler<ChannelGridInfo>>();
-
         private DiscordGuild selectedGuild = null;
-
 
 
         // a representation of all information that is available from a guild on a grid
@@ -231,9 +241,7 @@ namespace DiscordUnfolded {
                 }
                 DiscordTextChannel textChannel = selectedGuild.GetTextChannel(textChannelIDs[i]);
                 channelGrid.Last().Add(new ChannelGridInfo(textChannel.GetInfo()));
-
             }
-
 
             UpdateAllButtons();
         }
@@ -255,7 +263,7 @@ namespace DiscordUnfolded {
 
         // sends out an update event to buttons at the specified position
         private void UpdateButton(int xPos, int yPos) {
-            Logger.Instance.LogMessage(TracingLevel.DEBUG, "ChannelGridManager.UpdatingButton: (" + xPos + ", " + yPos + ") " + GetChannelInfoForPosition(xPos, yPos) );
+            //Logger.Instance.LogMessage(TracingLevel.DEBUG, "ChannelGridManager.UpdatingButton: (" + xPos + ", " + yPos + ") " + GetChannelInfoForPosition(xPos, yPos) );
             updateEvents[(xPos, yPos)]?.Invoke(this, GetChannelInfoForPosition(xPos, yPos)); 
         }
 
