@@ -140,6 +140,7 @@ namespace DiscordUnfolded {
                 }
 
                 DiscordVoiceChannel discordVoiceChannel = new DiscordVoiceChannel(discordGuild, voiceChannel.Id, voiceChannel.Name, voiceChannel.Position);
+
                 // add users
                 foreach(SocketGuildUser user in voiceChannel.Users) {
                     VoiceStates voiceState = VoiceStates.DISCONNECTED;
@@ -176,7 +177,6 @@ namespace DiscordUnfolded {
             if(guild.Name != newGuild.Name) {
                 DiscordGuild discordGuild = DiscordGuild.GetGuild(guild.Id);
                 if(discordGuild == null) {
-                    Logger.Instance.LogMessage(TracingLevel.WARN, "DiscordBot.OnGuildUpdated: Guild with ID " + guild.Id + " was not found");
                     return;
                 }
                 discordGuild.GuildName = newGuild.Name;
@@ -185,7 +185,6 @@ namespace DiscordUnfolded {
             if(guild.IconUrl != newGuild.IconUrl) {
                 DiscordGuild discordGuild = DiscordGuild.GetGuild(guild.Id);
                 if(discordGuild == null) {
-                    Logger.Instance.LogMessage(TracingLevel.WARN, "DiscordBot.OnGuildUpdated: Guild with ID " + guild.Id + " was not found");
                     return;
                 }
                 discordGuild.IconUrl = newGuild.IconUrl;
@@ -286,8 +285,11 @@ namespace DiscordUnfolded {
                 Logger.Instance.LogMessage(TracingLevel.WARN, "User " + socketUser.GlobalName + " switched voice states, but without any voice channels");
                 return;
             }
+
             
+
             SocketGuildUser socketGuildUser = socketUser as SocketGuildUser;
+            Logger.Instance.LogMessage(TracingLevel.DEBUG, "DiscordBot: " + socketGuildUser.Username + " " + socketGuildUser.Guild.Name);
             DiscordGuild discordGuild = DiscordGuild.GetGuild(socketGuildUser.Guild.Id);
             if(discordGuild == null) return;
 
@@ -300,6 +302,8 @@ namespace DiscordUnfolded {
 
             VoiceStates newVoiceState = GetDiscordVoiceState(newSocketVoiceState);
             DiscordVoiceChannel newDiscordVoiceChannel = discordGuild.GetVoiceChannel(newSocketVoiceState.VoiceChannel.Id);
+
+            Logger.Instance.LogMessage(TracingLevel.DEBUG, "DiscordBot: " + newVoiceState + " " + newDiscordVoiceChannel);
 
             // handle voice channel joins
             if(socketVoiceState.VoiceChannel == null && newSocketVoiceState.VoiceChannel != null) {

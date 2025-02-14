@@ -31,16 +31,16 @@
       "PropertyInspectorPath": "Actions/GlobalSettingsAction/GlobalSettingsAction.html"
     },
     {
-      "Icon": "Actions/ServerGridNavigationAction/UpDownIcon",
-      "Name": "Server Grid Navigation",
+      "Icon": "Actions/NavigationAction/UpDownIcon",
+      "Name": "Navigation",
       "States": [
         {
-          "Image": "Actions/ServerGridNavigationAction/DownArrow",
+          "Image": "Actions/NavigationAction/DownArrow",
           "TitleAlignment": "middle",
           "FontSize": "12"
         },
         {
-          "Image": "Actions/ServerGridNavigationAction/UpArrow",
+          "Image": "Actions/NavigationAction/UpArrow",
           "TitleAlignment": "middle",
           "FontSize": "12"
         }
@@ -48,8 +48,8 @@
       "DisableAutomaticStates": true,
       "SupportedInMultiActions": false,
       "Tooltip": "Lets you scroll through the servers that are shown on the \"Server Grid\" Action",
-      "UUID": "com.davidgolunski.discordunfolded.servergridnavigationaction",
-      "PropertyInspectorPath": "Actions/ServerGridNavigationAction/ServerGridNavigationAction.html"
+      "UUID": "com.davidgolunski.discordunfolded.navigationaction",
+      "PropertyInspectorPath": "Actions/NavigationAction/NavigationAction.html"
     },
     {
       "Icon": "Actions/ServerGridAction/Server",
@@ -82,37 +82,6 @@
       "Tooltip": "Shows you which server is currently selected",
       "UUID": "com.davidgolunski.discordunfolded.currentserveraction",
       "PropertyInspectorPath": "Actions/CurrentServerAction/CurrentServerAction.html"
-    },
-    {
-      "Icon": "Actions/ChannelGridNavigationAction/ArrowsIcon",
-      "Name": "Channel Grid Navigation",
-      "States": [
-        {
-          "Image": "Actions/ChannelGridNavigationAction/DownArrow",
-          "TitleAlignment": "middle",
-          "FontSize": "12"
-        },
-        {
-          "Image": "Actions/ChannelGridNavigationAction/UpArrow",
-          "TitleAlignment": "middle",
-          "FontSize": "12"
-        },
-        {
-          "Image": "Actions/ChannelGridNavigationAction/LeftArrow",
-          "TitleAlignment": "middle",
-          "FontSize": "12"
-        },
-        {
-          "Image": "Actions/ChannelGridNavigationAction/RightArrow",
-          "TitleAlignment": "middle",
-          "FontSize": "12"
-        }
-      ],
-      "DisableAutomaticStates": true,
-      "SupportedInMultiActions": false,
-      "Tooltip": "Lets you navigate through the channels that are shown on the \"Channel Grid\" Action",
-      "UUID": "com.davidgolunski.discordunfolded.channelgridnavigationaction",
-      "PropertyInspectorPath": "Actions/ChannelGridNavigationAction/ChannelGridNavigationAction.html"
     },
     {
       "Icon": "Actions/ChannelGridAction/Hashtag",
