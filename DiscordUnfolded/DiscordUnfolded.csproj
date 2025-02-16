@@ -189,6 +189,7 @@
     <Compile Include="Classes\ImageTools.cs">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Compile>
+    <Compile Include="Classes\KeyBindAction.cs" />
     <Compile Include="Classes\ServerBrowserManager.cs">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Compile>

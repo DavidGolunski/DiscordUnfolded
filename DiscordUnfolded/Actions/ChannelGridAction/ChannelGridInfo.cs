@@ -35,6 +35,41 @@ namespace DiscordUnfolded {
             UsersInChannel = new List<ulong>();
             UserInfo = userInfo;
         }
+        /*
+         * Overrides
+         */
+        public override bool Equals(object obj) {
+            if(obj == null || this.GetType() != obj.GetType()) return false;
+
+            ChannelGridInfo other = obj as ChannelGridInfo;
+            
+            // channel info
+            if(this.ChannelInfo == null && other.ChannelInfo != null)
+                return false;
+            if(this.ChannelInfo != null && !this.ChannelInfo.Equals(other.ChannelInfo))
+                return false;
+
+            // user info
+            if(this.UserInfo == null && other.UserInfo != null)
+                return false;
+            if(this.UserInfo != null && !this.UserInfo.Equals(other.UserInfo)) 
+                return false;
+
+            // UsersInChannel (can never be null)
+            if(this.UsersInChannel.Count != other.UsersInChannel.Count)
+                return false;
+
+            for(int i = 0; i < UsersInChannel.Count; i++) {
+                if(this.UsersInChannel[i] != other.UsersInChannel[i])
+                    return false;
+            }
+
+            return true;
+        }
+
+        public override int GetHashCode() {
+            return base.GetHashCode();
+        }
 
 
         public override string ToString() {

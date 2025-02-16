@@ -1,4 +1,5 @@
-﻿using Discord;
+﻿using BarRaider.SdTools;
+using Discord;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -29,6 +30,7 @@ namespace DiscordUnfolded.DiscordStructure {
         public VoiceStates VoiceState {
             get => voiceState;
             set {
+                Logger.Instance.LogMessage(TracingLevel.DEBUG, "DiscordUser: VoiceStateChange called. Previous: " +  voiceState + " Now: " + value); 
                 if(voiceState == value)
                     return;
                 voiceState = value;
@@ -48,8 +50,6 @@ namespace DiscordUnfolded.DiscordStructure {
                 voiceChannel.GetGuild().OnUserInfoChanged?.Invoke(this, GetInfo());
             }
         }
-
-
 
 
         public DiscordUser(DiscordVoiceChannel voiceChannel, ulong userId, string userName, VoiceStates voiceState, string iconUrl) {

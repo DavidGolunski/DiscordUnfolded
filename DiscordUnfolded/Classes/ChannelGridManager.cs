@@ -71,6 +71,9 @@ namespace DiscordUnfolded {
 
         private readonly Dictionary<(int, int), EventHandler<ChannelGridInfo>> updateEvents = new Dictionary<(int, int), EventHandler<ChannelGridInfo>>();
         private DiscordGuild selectedGuild = null;
+        public DiscordGuild SelectedGuild {
+            get => selectedGuild;
+        }
 
 
         // a representation of all information that is available from a guild on a grid
@@ -164,7 +167,7 @@ namespace DiscordUnfolded {
             this.selectedGuild.OnTextChannelChanged += OnTextChannelChanged;
 
             this.selectedGuild.OnVoiceChannelInfoChanged += OnVoiceChannelInfoChanged;
-            this.selectedGuild.OnTextChannelChanged += OnTextChannelChanged;
+            this.selectedGuild.OnTextChannelChanged += OnVoiceChannelChanged;
 
             this.selectedGuild.OnUserInfoChanged += OnUserInfoChanged;
             this.selectedGuild.OnUserChanged += OnUserChanged;
@@ -186,10 +189,12 @@ namespace DiscordUnfolded {
             UpdateChannelGrid();
         }
 
-        public void OnUserInfoChanged(object sender, DiscordUserInfo discordUserInfo) { 
+        public void OnUserInfoChanged(object sender, DiscordUserInfo discordUserInfo) {
+            Logger.Instance.LogMessage(TracingLevel.DEBUG, "ChannelGridManager: OnUserInfoChanged called");
             UpdateChannelGrid(); 
         }
         public void OnUserChanged(object sender, (bool wasAdded, ulong userId) info) {
+            Logger.Instance.LogMessage(TracingLevel.DEBUG, "ChannelGridManager: OnUserChanged called");
             UpdateChannelGrid();
         }
 

@@ -49,44 +49,6 @@ namespace DiscordUnfolded {
             ChannelGridManager.Instance.UnsubscribeFromPosition(settings.XPos, settings.YPos, UpdateButton);
         }
 
-        public override void KeyPressed(KeyPayload payload) {
-            keyPressedTimestamp = DateTime.Now;
-        }
-
-        public override void KeyReleased(KeyPayload payload) {
-            double timeDiff = (DateTime.Now - keyPressedTimestamp).TotalMilliseconds;
-            // timeDiff can only be lower than 0 if the "key" was never pressed in the first place or the "OnTick" method already has triggered the action automatically
-            if(timeDiff < 0) {
-                keyPressedTimestamp = DateTime.MaxValue;
-                return;
-            }
-
-            // if the button is the current user, mute or unmute the user
-            if(channelGridInfo?.UserInfo?.UserId == globalSettings.UserID) {
-
-                InputSimulator sim = new InputSimulator();
-
-                // deafen if the button was hold down for longer than a second of the user is currently deafened
-                if(timeDiff > 1000 || channelGridInfo.UserInfo.VoiceState == VoiceStates.DEAFENED) {
-                    sim.Keyboard.KeyDown(VirtualKeyCode.F13);
-                    sim.Keyboard.KeyDown(VirtualKeyCode.F15);
-
-                    sim.Keyboard.KeyUp(VirtualKeyCode.F13);
-                    sim.Keyboard.KeyUp(VirtualKeyCode.F15);
-                }
-                // mute if the button was hold down less than a second
-                else {
-                    sim.Keyboard.KeyDown(VirtualKeyCode.F13);
-                    sim.Keyboard.KeyDown(VirtualKeyCode.F14);
-
-                    sim.Keyboard.KeyUp(VirtualKeyCode.F13);
-                    sim.Keyboard.KeyUp(VirtualKeyCode.F14);
-                }
-            }
-
-            keyPressedTimestamp = DateTime.MaxValue;
-        }
-
         public override void OnTick() { }
 
         public override void ReceivedGlobalSettings(ReceivedGlobalSettingsPayload payload) {
@@ -123,15 +85,97 @@ namespace DiscordUnfolded {
             return Connection.SetSettingsAsync(JObject.FromObject(settings));
         }
 
+        /*
+         * Key Pressed Actions
+         */
+        public override void KeyPressed(KeyPayload payload) {
+            keyPressedTimestamp = DateTime.Now;
+        }
+
+        public override void KeyReleased(KeyPayload payload) {
+            double timeDiff = (DateTime.Now - keyPressedTimestamp).TotalMilliseconds;
+            // timeDiff can only be lower than 0 if the "key" was never pressed in the first place or the "OnTick" method already has triggered the action automatically
+            if(timeDiff < 0) {
+                keyPressedTimestamp = DateTime.MaxValue;
+                return;
+            }
+
+            // if the button is the current user, mute or unmute the user. Does nothing if the button is not the current user
+            UserButtonPressed(channelGridInfo, timeDiff);
+            // moves the user between channels, lets the user join a channel or disconnect from a channel
+            VoiceChannelPressed(channelGridInfo);
+
+
+
+            keyPressedTimestamp = DateTime.MaxValue;
+        }
+
+        private void UserButtonPressed(ChannelGridInfo channelGridInfo, double timeDiff) {
+            // if the button is the current user, mute or unmute the user
+            if(channelGridInfo?.UserInfo?.UserId != globalSettings.UserID)
+                return;
+            
+
+            InputSimulator sim = new InputSimulator();
+
+            // deafen if the button was hold down for longer than a second of the user is currently deafened
+            if(timeDiff > 1000 || channelGridInfo.UserInfo.VoiceState == VoiceStates.DEAFENED) {
+                KeyBindAction.KeyBindActions["DEAFEN"].Execute();
+            }
+            // mute if the button was hold down less than a second
+            else {
+                KeyBindAction.KeyBindActions["MUTE"].Execute();
+            } 
+        }
+
+        private void VoiceChannelPressed(ChannelGridInfo channelGridInfo) {
+            // if a voice channel has been pressed
+            if(channelGridInfo?.ChannelInfo?.ChannelType != ChannelTypes.VOICE) 
+                return;
+
+
+            //check if the user is already inside a voice channel
+            ulong channelID = channelGridInfo.ChannelInfo.ChannelId;
+
+            DiscordGuild guild = ChannelGridManager.Instance.SelectedGuild;
+            if(guild == null) 
+                return;
+
+            DiscordUser user = ChannelGridManager.Instance.SelectedGuild?.GetUser(globalSettings.UserID);
+
+            // for joining the channel via keybind if possible 
+            if(user == null) {
+                if(!KeyBindAction.KeyBindActions.ContainsKey("JOIN_" + channelID))
+                    return;
+
+                KeyBindAction.KeyBindActions["JOIN_" + channelID].Execute();
+                return;
+            }
+                
+            
+            //for kicking user
+            if(user.GetVoiceChannel().ChannelId == channelID) {
+                KeyBindAction.KeyBindActions["DISCONNECT"].Execute();
+            }
+            // for moving user
+            else {
+                DiscordBot.Instance.MoveUser(user.GetVoiceChannel().GetGuild().GuildId, user.UserId, channelID);
+            }
+            
+            
+        }
 
         /*
          * Update Button Logic
          */
         public void UpdateButton(object sender, ChannelGridInfo newChannelGridInfo) {
+            
 
+            // ignore the update if no relevant information has changed. ChannelGridInfo sent by events can not be null
             if(newChannelGridInfo == null || (newChannelGridInfo.Equals(this.channelGridInfo) && this.lastUsedUserID == globalSettings.UserID))
                 return;
 
+            Logger.Instance.LogMessage(TracingLevel.DEBUG, "ChannelGridManager: ButtonUpdate requirements fullfilled. XPos: " + settings.XPos + " YPos: " + settings.YPos + " oldChannelGridInfo: " + this.channelGridInfo + " newChannelGridInfo: " + newChannelGridInfo);
             this.channelGridInfo = newChannelGridInfo;
             this.lastUsedUserID = globalSettings.UserID;
 
@@ -195,6 +239,7 @@ namespace DiscordUnfolded {
                 return;
             }
 
+            Bitmap highlightBitmap = null;
             Bitmap bitmap = ImageTools.GetResizedBitmapFromUrl(userInfo.IconUrl);
 
             if(bitmap == null) {
@@ -204,22 +249,20 @@ namespace DiscordUnfolded {
             }
             
             if(userInfo.VoiceState == VoiceStates.DEAFENED) {
-                Bitmap highlightBitmap = ImageTools.GetBitmapFromFilePath("./Images/BigRedHighlight@2x.png");
+                highlightBitmap = ImageTools.GetBitmapFromFilePath("./Images/BigRedHighlight@2x.png");
                 bitmap = ImageTools.MergeBitmaps(bitmap, highlightBitmap);
-                highlightBitmap.Dispose();
             }
             else if(userInfo.VoiceState == VoiceStates.MUTED) {
-                Bitmap highlightBitmap = ImageTools.GetBitmapFromFilePath("./Images/BigYellowHighlight@2x.png");
+                highlightBitmap = ImageTools.GetBitmapFromFilePath("./Images/BigYellowHighlight@2x.png");
                 bitmap = ImageTools.MergeBitmaps(bitmap, highlightBitmap);
-                highlightBitmap.Dispose();
             }
 
 
             Connection.SetImageAsync(bitmap).GetAwaiter().GetResult();
             bitmap.Dispose();
+            highlightBitmap?.Dispose();
             return;
         }
-
 
        
     }

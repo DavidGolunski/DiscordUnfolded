@@ -103,6 +103,23 @@ namespace DiscordUnfolded {
             return VoiceStates.UNMUTED;
         }
 
+        public bool MoveUser(ulong guildID, ulong userID,ulong voiceChannelID) {
+            SocketGuild guild = client.GetGuild(guildID);
+            if(guild == null)
+                return false;
+
+            SocketVoiceChannel voiceChannel = guild.GetVoiceChannel(voiceChannelID);
+            if(voiceChannel == null) 
+                return false;
+
+            SocketGuildUser user = guild.GetUser(userID); 
+            if(user == null) 
+                return false;
+
+            guild.MoveAsync(user, voiceChannel).GetAwaiter().GetResult();
+            return true;
+            
+        }
 
 #pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
 
@@ -303,7 +320,7 @@ namespace DiscordUnfolded {
             VoiceStates newVoiceState = GetDiscordVoiceState(newSocketVoiceState);
             DiscordVoiceChannel newDiscordVoiceChannel = discordGuild.GetVoiceChannel(newSocketVoiceState.VoiceChannel.Id);
 
-            Logger.Instance.LogMessage(TracingLevel.DEBUG, "DiscordBot: " + newVoiceState + " " + newDiscordVoiceChannel);
+            Logger.Instance.LogMessage(TracingLevel.DEBUG, "DiscordBot: " + newVoiceState + " " + newDiscordVoiceChannel?.ChannelName);
 
             // handle voice channel joins
             if(socketVoiceState.VoiceChannel == null && newSocketVoiceState.VoiceChannel != null) {
@@ -327,6 +344,7 @@ namespace DiscordUnfolded {
             DiscordUser discordUser = newDiscordVoiceChannel.GetUser(socketGuildUser.Id);
             discordUser.UserName = socketGuildUser.DisplayName;
             discordUser.IconUrl = socketGuildUser.GetDisplayAvatarUrl();
+            Logger.Instance.LogMessage(TracingLevel.DEBUG, "Discordbot: Changing User Info. Previous: " + discordUser.VoiceState + " Now: " + newVoiceState);
             discordUser.VoiceState = newVoiceState;
 
         }

@@ -164,10 +164,15 @@ namespace DiscordUnfolded.DiscordStructure {
         /*
          * Users in Voice Channels
          */
-
-
-
-
+        public DiscordUser GetUser(ulong userID) {
+            foreach(DiscordVoiceChannel voiceChannel in voiceChannels.Values) {
+                DiscordUser discordUser = voiceChannel.GetUser(userID);
+                if(discordUser != null) {
+                    return discordUser;
+                }
+            }
+            return null;
+        }
 
 
         public override string ToString() {
