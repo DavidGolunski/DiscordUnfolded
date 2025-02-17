@@ -13,7 +13,14 @@ namespace DiscordUnfolded {
 
         private static ChannelGridManager instance;
         public static ChannelGridManager Instance {
-            get => instance ??= new ChannelGridManager();
+            get {
+                if (instance == null) {
+                    instance = new ChannelGridManager();
+                    Logger.Instance.LogMessage(TracingLevel.WARN, "ChannelGridManager Instance had to create new Object");
+                }
+                //instance ??= new ChannelGridManager();
+                return instance;
+            }
             private set => instance = value;
         }
 
@@ -92,6 +99,8 @@ namespace DiscordUnfolded {
         }
 
         ~ChannelGridManager() {
+            Logger.Instance.LogMessage(TracingLevel.WARN, "ChannelGridManager Deconstructor called");
+            this.selectedGuild = null;
             ServerBrowserManager.Instance.UnsubscribeFromSelectedGuild(OnSelectedGuildChanged);
         }
 

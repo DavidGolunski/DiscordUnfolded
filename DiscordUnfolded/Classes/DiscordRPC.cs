@@ -10,6 +10,9 @@ using System.IO;
 using System.Net.Http;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using System.Reflection;
+using System.Runtime.InteropServices.WindowsRuntime;
+using DiscordUnfolded.DiscordStructure;
 
 namespace DiscordUnfolded {
     public class DiscordRPC {
@@ -19,17 +22,23 @@ namespace DiscordUnfolded {
             get => instance ??= new DiscordRPC();
             private set => instance = value;
         }
+        private const string clientId = "1337102485017595966"; // Replace with your actual Client ID
+        private const string clientSecret = "6FWjjmhTxcaNMBwzVCZq_bKuS6KDy-qp";
+        private const string PIPE_NAME = "discord-ipc-"; // Try 0-9 -> "discord-ipc-0", "discord-ipc-1", ...
+
+
+
+
+        public ulong CurrentUserID { get; private set; } = 0;
 
         public bool IsRunning { get => cancellationTokenSource != null; }
 
         private CancellationTokenSource cancellationTokenSource;
-        private const string clientId = "1337102485017595966"; // Replace with your actual Client ID
-        private const string clientSecret = "6FWjjmhTxcaNMBwzVCZq_bKuS6KDy-qp";
+        
         private string authorizationCode = null;
         private string accessToken = null; // Retrieved after authenticate
         private NamedPipeClientStream pipe;
-        private const string PIPE_NAME = "discord-ipc-0"; // Try 0-9
-        private const string redirectUri = "https://127.0.0.1:7393";
+        private const string redirectUri = "https://127.0.0.1:7393/callback";
 
         private DiscordRPC() {
             cancellationTokenSource = null;
@@ -43,9 +52,9 @@ namespace DiscordUnfolded {
             cancellationTokenSource = new CancellationTokenSource();
             CancellationToken token = cancellationTokenSource.Token;
 
-            Task.Run(() => StartRPC(token), token);
+            Task.Run(() => Connect(token), token);
 
-            BarRaider.SdTools.Logger.Instance.LogMessage(TracingLevel.INFO, "BetterDiscordReceiver Started");
+           Logger.Instance.LogMessage(TracingLevel.INFO, "DiscordRPC Started");
         }
 
         public void Stop() {
@@ -57,90 +66,59 @@ namespace DiscordUnfolded {
             cancellationTokenSource.Dispose();
             cancellationTokenSource = null;
 
-            if(pipe != null) {
-                pipe.Close();
-                pipe.Dispose();
-            }
+            Disconnect();
 
-            BarRaider.SdTools.Logger.Instance.LogMessage(TracingLevel.INFO, "BetterDiscordReceiver Stopped");
+            Logger.Instance.LogMessage(TracingLevel.INFO, "DiscordRPC Stopped");
         }
 
-        private async Task StartRPC(CancellationToken token) {
-            try {
-                pipe = new NamedPipeClientStream(".", PIPE_NAME, PipeDirection.InOut, PipeOptions.Asynchronous);
-                await pipe.ConnectAsync(5000, token);
+        private async Task Connect(CancellationToken token) {
+            Logger.Instance.LogMessage(TracingLevel.DEBUG, "Started Connect function " + token);
+            if(token == null)
+                return;
 
-                BarRaider.SdTools.Logger.Instance.LogMessage(TracingLevel.INFO, $"Connected to Discord IPC: {PIPE_NAME}");
+            Disconnect();
 
-                // Send Handshake
-                await SendMessageAsync(0, new { v = 1, client_id = clientId });
+            // create the pipe connection to Discord RPC via IPC. Try indeces between 0 and 9
+            for(int i = 0; i < 10 && !token.IsCancellationRequested && (pipe == null || !pipe.IsConnected); i++) {
+                try {
+                    // Attempt to connect to the pipe with the current index
+                    pipe = new NamedPipeClientStream(".", PIPE_NAME + i, PipeDirection.InOut, PipeOptions.Asynchronous);
 
-                // Start listening for incoming messages
-                await ListenAsync(token);
+                    // Try to connect with a timeout (e.g., 1 second)
+                    await pipe.ConnectAsync(1000, token); // 1000 milliseconds = 1 second
+
+                    // If we reach here, the connection was successful
+                    Logger.Instance.LogMessage(TracingLevel.INFO, $"Connected to pipe: {PIPE_NAME + i}");
+                }
+                catch(TimeoutException) {
+                    // This pipe is not available (it may already be in use)
+                    Logger.Instance.LogMessage(TracingLevel.DEBUG, $"Pipe {PIPE_NAME + i} is in use.");
+                }
+                catch(IOException) {
+                    // This pipe is not available (it may not exist)
+                    Logger.Instance.LogMessage(TracingLevel.ERROR, $"Pipe {PIPE_NAME + i} does not exist.");
+                    Stop();
+                    return;
+                }
             }
-            catch(Exception ex) {
-                BarRaider.SdTools.Logger.Instance.LogMessage(TracingLevel.ERROR, $"Failed to connect to Discord IPC: {ex.Message}");
+
+
+            // Send Handshake
+            await SendMessageAsync(0, new { v = 1, client_id = clientId });
+            
+            JObject dispatchMessage = ListenForMessages(token);
+            string dispatchCommand = dispatchMessage["cmd"]?.ToString();
+            if(dispatchCommand != "DISPATCH") {
+                Logger.Instance.LogMessage(TracingLevel.ERROR, "DiscordRPC expected a DISPATCH command, but received \"" + dispatchCommand + "\" instead!");
+                Stop();
                 return;
             }
+            if(token.IsCancellationRequested)
+                return;
 
-           
-        }
 
-        private async Task ListenAsync(CancellationToken token) {
-            byte[] buffer = new byte[2048];
-            while(!token.IsCancellationRequested && pipe.IsConnected) {
-                BarRaider.SdTools.Logger.Instance.LogMessage(TracingLevel.INFO, "Listening For Messages");
-                try {
-                    int bytesRead = await pipe.ReadAsync(buffer, 0, buffer.Length, token);
-                    if(bytesRead > 0) {
-                        string response = ParseMessage(buffer, bytesRead);
-                        HandleIncomingMessage(response);
-                    }
-                }
-                catch(Exception ex) {
-                    BarRaider.SdTools.Logger.Instance.LogMessage(TracingLevel.ERROR, $"Error in ListenAsync: {ex.Message}");
-                    break;
-                }
-            }
-            BarRaider.SdTools.Logger.Instance.LogMessage(TracingLevel.INFO, "Stopped Listeing For Messages");
-        }
-
-        private void HandleIncomingMessage(string message) {
-            var response = JsonConvert.DeserializeObject<JObject>(message);
-            string cmd = response["cmd"]?.ToString();
-
-            switch(cmd) {
-                case "DISPATCH":
-                    BarRaider.SdTools.Logger.Instance.LogMessage(TracingLevel.INFO, "Received DISPATCH, sending AUTHORIZE command...");
-                    _ = SendAuthorizeRequest();
-                    break;
-                case "AUTHORIZE":
-                    authorizationCode = response["data"]?["code"]?.ToString();
-                    BarRaider.SdTools.Logger.Instance.LogMessage(TracingLevel.INFO, "Received Code: " + authorizationCode + " Authorize Message: " + message);
-                    //_ = SendAuthenticateRequest();
-                    try {
-                        accessToken = DiscordOAuth2.ExchangeCode(authorizationCode, clientId, clientSecret, redirectUri);
-                    }
-                    catch (Exception ex) {
-                        Logger.Instance.LogMessage(TracingLevel.ERROR, "Received Error while retrieving access token: " + ex.StackTrace);
-                        break;
-                    }
-                    
-                    BarRaider.SdTools.Logger.Instance.LogMessage(TracingLevel.INFO, "Received AccessToken: " + accessToken);
-                    _ = GetGuilds();
-                    break;
-                case "AUTHENTICATE":
-                    BarRaider.SdTools.Logger.Instance.LogMessage(TracingLevel.INFO, "Received Authenticate: " + message);
-                    _ = GetGuilds();
-                    break;
-                default:
-                    BarRaider.SdTools.Logger.Instance.LogMessage(TracingLevel.INFO, "Received Message: " + message);
-                    break;
-            }
-        }
-
-        private async Task SendAuthorizeRequest() {
-            var request = new {
+            // Send Authorize Request
+            var authorizeRequest = new {
                 nonce = Guid.NewGuid().ToString(),
                 cmd = "AUTHORIZE",
                 args = new {
@@ -148,84 +126,96 @@ namespace DiscordUnfolded {
                     scopes = new[] { "identify", "rpc", "guilds" }
                 }
             };
+            await SendMessageAsync(1, authorizeRequest);
 
-            await SendMessageAsync(1, request);    
-        }
+            JObject authorizeMessage = ListenForMessages(token);
+            string authorizeCommand = authorizeMessage["cmd"]?.ToString();
+            if(authorizeCommand != "AUTHORIZE") {
+                Logger.Instance.LogMessage(TracingLevel.ERROR, "DiscordRPC expected a AUTHORIZE command, but received \"" + authorizeCommand + "\" instead!");
+                Stop();
+                return;
+            }
+ 
 
-        private async Task SendAuthenticateRequest() {
-            // will try to do this later. I did not receive any message on the specificed port, but already got an access token
-            // _ = Task.Run(() => StartHttpListener(), CancellationToken.None); 
+            // Send authorization Code to OAuth2 to get Bearer Access Token
+            string authorizationCode = authorizeMessage["data"]?["code"]?.ToString();
+            string accessToken = null;
+            try {
+                accessToken = DiscordOAuth2.ExchangeCode(authorizationCode, clientId, clientSecret, redirectUri, token);
+            }
+            catch(Exception ex) {
+                Logger.Instance.LogMessage(TracingLevel.ERROR, "Received Error while retrieving access token: " + ex.StackTrace);
+                Stop();
+                return;
+            }
+            if(accessToken == null) {
+                Logger.Instance.LogMessage(TracingLevel.ERROR, "Access Token could not be retrieved");
+                Stop();
+                return;
+            }
 
-            var request = new {
+
+            // Authenticate with the OAuth2 Access Token via IPC
+            var authenticateRequest = new {
                 nonce = Guid.NewGuid().ToString(),
                 cmd = "AUTHENTICATE",
                 args = new {
                     acess_token = accessToken
                 }
             };
+            await SendMessageAsync(1, authenticateRequest);
 
-            await SendMessageAsync(1, request);
+            JObject authenticateMessage = ListenForMessages(token);
+            string authenticateCommand = authenticateMessage["cmd"]?.ToString();
+            if(authenticateCommand != "AUTHENTICATE") {
+                Logger.Instance.LogMessage(TracingLevel.ERROR, "DiscordRPC expected a AUTHENTICATE command, but received \"" + authenticateCommand + "\" instead!");
+                Stop();
+                return;
+            }
+
+            CurrentUserID = UInt64.Parse(authenticateMessage["data"]["user"]["id"].ToString());
+
+            Logger.Instance.LogMessage(TracingLevel.DEBUG, authenticateMessage.ToString());
+
+
+            if(token.IsCancellationRequested)
+                return;
+
+            GetAvailableGuilds();
         }
 
-        private async Task StartHttpListener() {
-            using var listener = new HttpListener();
-            listener.Prefixes.Add($"{redirectUri}/");
-            listener.Start();
-            BarRaider.SdTools.Logger.Instance.LogMessage(TracingLevel.INFO, $"Listening for auth code on {redirectUri}");
+        private void Disconnect() {
+            CurrentUserID = 0;
+            if(pipe == null)
+                return;
+            pipe.Close();
+            pipe.Dispose();
+        }
 
-            try {
-                var context = await listener.GetContextAsync();
-                string authCode = context.Request.QueryString["code"];
+        private JObject ListenForMessages(CancellationToken token) {
+            byte[] buffer = new byte[2048 * 8];
 
-                if(!string.IsNullOrEmpty(authCode)) {
-                    BarRaider.SdTools.Logger.Instance.LogMessage(TracingLevel.INFO, $"Received Auth Code: {authCode}");
-                    _ = ExchangeAuthCodeForToken(authCode);
+            while(pipe != null && pipe.IsConnected && token != null && !token.IsCancellationRequested) {
+                try {
+                    int bytesRead = pipe.ReadAsync(buffer, 0, buffer.Length, token).GetAwaiter().GetResult();
+                    if(bytesRead <= 0) {
+                        Task.Delay(10);
+                        continue;
+                    }
+
+                    int op = BitConverter.ToInt32(buffer, 0);
+                    int jsonLength = BitConverter.ToInt32(buffer, 4);
+                    string json = Encoding.UTF8.GetString(buffer, 8, jsonLength);
+                    return JsonConvert.DeserializeObject<JObject>(json);
                 }
-
-                string responseString = "Authorization successful! You can close this window.";
-                byte[] buffer = Encoding.UTF8.GetBytes(responseString);
-                context.Response.ContentLength64 = buffer.Length;
-                using var output = context.Response.OutputStream;
-                output.Write(buffer, 0, buffer.Length);
+                catch(Exception ex) {
+                    Logger.Instance.LogMessage(TracingLevel.ERROR, $"Error in ListenAsync: {ex.StackTrace}");
+                    break;
+                }
             }
-            catch(Exception ex) {
-                BarRaider.SdTools.Logger.Instance.LogMessage(TracingLevel.ERROR, $"HTTP Listener Error: {ex.Message}");
-            }
-            finally {
-                listener.Stop();
-            }
+
+            return null;
         }
-
-        private async Task ExchangeAuthCodeForToken(string authCode) {
-            using var client = new HttpClient();
-            var values = new Dictionary<string, string>
-            {
-            { "client_id", clientId },
-            { "client_secret", "YOUR_CLIENT_SECRET" },
-            { "grant_type", "authorization_code" },
-            { "code", authCode },
-            { "redirect_uri", redirectUri }
-        };
-
-            var content = new FormUrlEncodedContent(values);
-            var response = await client.PostAsync("https://discord.com/api/oauth2/token", content);
-            var responseString = await response.Content.ReadAsStringAsync();
-
-            BarRaider.SdTools.Logger.Instance.LogMessage(TracingLevel.INFO, $"Token Response: {responseString}");
-        }
-
-        private async Task GetGuilds() {
-            //_ = Task.Run(() => StartHttpListener(), CancellationToken.None);
-
-            var request = new {
-                nonce = Guid.NewGuid().ToString(),
-                cmd = "GET_GUILDS",
-                args = new { }
-            };
-
-            await SendMessageAsync(1, request);
-        }
-
 
         private async Task SendMessageAsync(int op, object payload) {
             var json = JsonConvert.SerializeObject(payload);
@@ -242,11 +232,45 @@ namespace DiscordUnfolded {
             await pipe.FlushAsync();
         }
 
-        private string ParseMessage(byte[] buffer, int length) {
-            int op = BitConverter.ToInt32(buffer, 0);
-            int jsonLength = BitConverter.ToInt32(buffer, 4);
-            string json = Encoding.UTF8.GetString(buffer, 8, jsonLength);
-            return json;
+        public List<DiscordGuild> GetAvailableGuilds() {
+            if(pipe == null || !pipe.IsConnected) {
+                return null;
+            }
+
+            List<DiscordGuild> guilds = new List<DiscordGuild>();
+
+
+            var guildRequest = new {
+                nonce = Guid.NewGuid().ToString(),
+                cmd = "GET_GUILDS",
+                args = new { }
+            };
+
+            SendMessageAsync(1, guildRequest).GetAwaiter().GetResult();
+
+            JObject guildMessage = ListenForMessages(cancellationTokenSource.Token);
+            if(guildMessage == null) {
+                return null;
+            }
+
+            var guildData = guildMessage["data"]?["guilds"] as JArray;
+            foreach(var guildJToken in guildData) {
+                string id = guildJToken["id"]?.ToString();
+                string name = guildJToken["name"]?.ToString();
+                string iconURL = guildJToken["icon_url"]?.ToString();
+
+                DiscordGuild discordGuild = new DiscordGuild(UInt64.Parse(id), name, iconURL);
+                guilds.Add(discordGuild);
+                Logger.Instance.LogMessage(TracingLevel.DEBUG, "DiscordRPC: " + discordGuild.ToString());
+            }
+
+
+
+
+
+
+            return null;
+
         }
     }
 

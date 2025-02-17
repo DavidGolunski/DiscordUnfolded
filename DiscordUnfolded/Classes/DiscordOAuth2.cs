@@ -6,13 +6,17 @@ using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace DiscordUnfolded {
     public static class DiscordOAuth2 {
         private static readonly HttpClient httpClient = new HttpClient();
 
-        public static string ExchangeCode(string code, string clientID, string clientSecret, string redirectURI) {
+        public static string ExchangeCode(string code, string clientID, string clientSecret, string redirectURI, CancellationToken cancellationToken) {
+            if(code == null || clientID == null || clientSecret == null || redirectURI == null) 
+                return null;
+
             var values = new Dictionary<string, string>
             {
             { "grant_type", "authorization_code" },
@@ -28,7 +32,7 @@ namespace DiscordUnfolded {
             request.Headers.Authorization = new AuthenticationHeaderValue("Basic",
                 Convert.ToBase64String(System.Text.Encoding.ASCII.GetBytes($"{clientID}:{clientSecret}")));
 
-            var response = httpClient.SendAsync(request).GetAwaiter().GetResult();
+            var response = httpClient.SendAsync(request, cancellationToken).GetAwaiter().GetResult();
 
             if(!response.IsSuccessStatusCode) {
                 throw new Exception($"Error exchanging code: {response.StatusCode}");

@@ -30,12 +30,12 @@ namespace DiscordUnfolded.DiscordStructure {
         public VoiceStates VoiceState {
             get => voiceState;
             set {
-                Logger.Instance.LogMessage(TracingLevel.DEBUG, "DiscordUser: VoiceStateChange called. Previous: " +  voiceState + " Now: " + value); 
                 if(voiceState == value)
                     return;
                 voiceState = value;
+                Logger.Instance.LogMessage(TracingLevel.DEBUG, "DiscordUser: VoiceStateChange called. Previous: " + voiceState + " Now: " + value);
                 // invoke guild event from this level
-                voiceChannel.GetGuild().OnUserInfoChanged?.Invoke(this, GetInfo());
+                voiceChannel.GetGuild().OnUserInfoChanged.Invoke(this, GetInfo()); // WARNING: this is an unsafe call if objects have not unsubscribed! For testing only
             }
         }
 
