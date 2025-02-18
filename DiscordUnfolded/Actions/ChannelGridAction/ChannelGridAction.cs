@@ -102,9 +102,20 @@ namespace DiscordUnfolded {
 
             // if the button is the current user, mute or unmute the user. Does nothing if the button is not the current user
             UserButtonPressed(channelGridInfo, timeDiff);
+            /*
             // moves the user between channels, lets the user join a channel or disconnect from a channel
             VoiceChannelPressed(channelGridInfo);
+            */
 
+            if(channelGridInfo?.ChannelInfo?.ChannelId != null) {
+
+                if(channelGridInfo.UsersInChannel?.Contains(globalSettings.UserID) == true) {
+                    DiscordRPC.Instance.SelectChannel(channelGridInfo.ChannelInfo.ChannelType, 0);
+                }
+                else {
+                    DiscordRPC.Instance.SelectChannel(channelGridInfo.ChannelInfo.ChannelType, channelGridInfo.ChannelInfo.ChannelId);
+                }
+            }
 
 
             keyPressedTimestamp = DateTime.MaxValue;
@@ -115,9 +126,6 @@ namespace DiscordUnfolded {
             if(channelGridInfo?.UserInfo?.UserId != globalSettings.UserID)
                 return;
             
-
-            InputSimulator sim = new InputSimulator();
-
             // deafen if the button was hold down for longer than a second of the user is currently deafened
             if(timeDiff > 1000 || channelGridInfo.UserInfo.VoiceState == VoiceStates.DEAFENED) {
                 KeyBindAction.KeyBindActions["DEAFEN"].Execute();

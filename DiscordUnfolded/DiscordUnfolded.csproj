@@ -158,6 +158,10 @@
     <Compile Include="Classes\ChannelGridManager.cs">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Compile>
+    <Compile Include="Classes\DiscordCommunication\EventType.cs" />
+    <Compile Include="Classes\DiscordCommunication\IPCMessage.cs" />
+    <Compile Include="Classes\DiscordCommunication\IPCMessenger.cs" />
+    <Compile Include="Classes\DiscordCommunication\MessageType.cs" />
     <Compile Include="Classes\DiscordOAuth2.cs" />
     <Compile Include="Classes\DiscordStructure\DiscordUser.cs">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

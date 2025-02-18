@@ -13,6 +13,7 @@ using Newtonsoft.Json.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices.WindowsRuntime;
 using DiscordUnfolded.DiscordStructure;
+using DiscordUnfolded.DiscordCommunication;
 
 namespace DiscordUnfolded {
     public class DiscordRPC {
@@ -22,26 +23,27 @@ namespace DiscordUnfolded {
             get => instance ??= new DiscordRPC();
             private set => instance = value;
         }
+
         private const string clientId = "1337102485017595966"; // Replace with your actual Client ID
         private const string clientSecret = "6FWjjmhTxcaNMBwzVCZq_bKuS6KDy-qp";
-        private const string PIPE_NAME = "discord-ipc-"; // Try 0-9 -> "discord-ipc-0", "discord-ipc-1", ...
-
-
 
 
         public ulong CurrentUserID { get; private set; } = 0;
 
         public bool IsRunning { get => cancellationTokenSource != null; }
-
         private CancellationTokenSource cancellationTokenSource;
         
+
+
         private string authorizationCode = null;
         private string accessToken = null; // Retrieved after authenticate
-        private NamedPipeClientStream pipe;
         private const string redirectUri = "https://127.0.0.1:7393/callback";
+
+        private readonly IPCMessenger messenger;
 
         private DiscordRPC() {
             cancellationTokenSource = null;
+            messenger = new IPCMessenger(true);
         }
 
         public void Start() {
@@ -52,6 +54,11 @@ namespace DiscordUnfolded {
             cancellationTokenSource = new CancellationTokenSource();
             CancellationToken token = cancellationTokenSource.Token;
 
+            // start the IPC Messenger
+            Task.Run(() => messenger.Connect(token), token);
+
+            Task.Delay(10);
+
             Task.Run(() => Connect(token), token);
 
            Logger.Instance.LogMessage(TracingLevel.INFO, "DiscordRPC Started");
@@ -61,8 +68,13 @@ namespace DiscordUnfolded {
             if(!IsRunning) {
                 return;
             }
+            
 
             cancellationTokenSource.Cancel();
+
+            // Disconnect the IPC Messenger
+            messenger.Disconnect();
+
             cancellationTokenSource.Dispose();
             cancellationTokenSource = null;
 
@@ -71,75 +83,33 @@ namespace DiscordUnfolded {
             Logger.Instance.LogMessage(TracingLevel.INFO, "DiscordRPC Stopped");
         }
 
-        private async Task Connect(CancellationToken token) {
-            Logger.Instance.LogMessage(TracingLevel.DEBUG, "Started Connect function " + token);
-            if(token == null)
-                return;
+        private void Connect(CancellationToken token) {
+            IPCMessage dispathMessage = messenger.SendDispatchRequest(clientId);
+            Logger.Instance.LogMessage(TracingLevel.DEBUG, dispathMessage.ToString());
 
-            Disconnect();
-
-            // create the pipe connection to Discord RPC via IPC. Try indeces between 0 and 9
-            for(int i = 0; i < 10 && !token.IsCancellationRequested && (pipe == null || !pipe.IsConnected); i++) {
-                try {
-                    // Attempt to connect to the pipe with the current index
-                    pipe = new NamedPipeClientStream(".", PIPE_NAME + i, PipeDirection.InOut, PipeOptions.Asynchronous);
-
-                    // Try to connect with a timeout (e.g., 1 second)
-                    await pipe.ConnectAsync(1000, token); // 1000 milliseconds = 1 second
-
-                    // If we reach here, the connection was successful
-                    Logger.Instance.LogMessage(TracingLevel.INFO, $"Connected to pipe: {PIPE_NAME + i}");
-                }
-                catch(TimeoutException) {
-                    // This pipe is not available (it may already be in use)
-                    Logger.Instance.LogMessage(TracingLevel.DEBUG, $"Pipe {PIPE_NAME + i} is in use.");
-                }
-                catch(IOException) {
-                    // This pipe is not available (it may not exist)
-                    Logger.Instance.LogMessage(TracingLevel.ERROR, $"Pipe {PIPE_NAME + i} does not exist.");
-                    Stop();
-                    return;
-                }
-            }
-
-
-            // Send Handshake
-            await SendMessageAsync(0, new { v = 1, client_id = clientId });
-            
-            JObject dispatchMessage = ListenForMessages(token);
-            string dispatchCommand = dispatchMessage["cmd"]?.ToString();
-            if(dispatchCommand != "DISPATCH") {
-                Logger.Instance.LogMessage(TracingLevel.ERROR, "DiscordRPC expected a DISPATCH command, but received \"" + dispatchCommand + "\" instead!");
+            if(!string.IsNullOrEmpty(dispathMessage.Error) || token.IsCancellationRequested) {
                 Stop();
                 return;
             }
-            if(token.IsCancellationRequested)
-                return;
+
+            // try getting the previous token from the saved file
 
 
-            // Send Authorize Request
-            var authorizeRequest = new {
-                nonce = Guid.NewGuid().ToString(),
-                cmd = "AUTHORIZE",
-                args = new {
-                    client_id = clientId,
-                    scopes = new[] { "identify", "rpc", "guilds" }
-                }
-            };
-            await SendMessageAsync(1, authorizeRequest);
 
-            JObject authorizeMessage = ListenForMessages(token);
-            string authorizeCommand = authorizeMessage["cmd"]?.ToString();
-            if(authorizeCommand != "AUTHORIZE") {
-                Logger.Instance.LogMessage(TracingLevel.ERROR, "DiscordRPC expected a AUTHORIZE command, but received \"" + authorizeCommand + "\" instead!");
+
+            // If we get here, then authenticating with a previously stored token was unsuccessfull and we need to reauthenticate again
+            IPCMessage authorizeMessage = messenger.SendAuthorizeRequest(clientId);
+            Logger.Instance.LogMessage(TracingLevel.DEBUG, authorizeMessage.ToString());
+
+            if(!string.IsNullOrEmpty(authorizeMessage.Error) || token.IsCancellationRequested) {
                 Stop();
                 return;
             }
- 
+
 
             // Send authorization Code to OAuth2 to get Bearer Access Token
-            string authorizationCode = authorizeMessage["data"]?["code"]?.ToString();
-            string accessToken = null;
+            string authorizationCode = authorizeMessage.Data["code"]?.ToString();
+            string accessToken;
             try {
                 accessToken = DiscordOAuth2.ExchangeCode(authorizationCode, clientId, clientSecret, redirectUri, token);
             }
@@ -154,92 +124,54 @@ namespace DiscordUnfolded {
                 return;
             }
 
+            // saves the access token to the file
+            SaveTokenToFile(accessToken);
 
-            // Authenticate with the OAuth2 Access Token via IPC
-            var authenticateRequest = new {
-                nonce = Guid.NewGuid().ToString(),
-                cmd = "AUTHENTICATE",
-                args = new {
-                    acess_token = accessToken
-                }
-            };
-            await SendMessageAsync(1, authenticateRequest);
 
-            JObject authenticateMessage = ListenForMessages(token);
-            string authenticateCommand = authenticateMessage["cmd"]?.ToString();
-            if(authenticateCommand != "AUTHENTICATE") {
-                Logger.Instance.LogMessage(TracingLevel.ERROR, "DiscordRPC expected a AUTHENTICATE command, but received \"" + authenticateCommand + "\" instead!");
+            // Send Authentication Request after OAuth2 has provided the bearer access token
+            IPCMessage authenticationMessage = messenger.SendAuthenticateRequest(accessToken);
+            if(!string.IsNullOrEmpty(authenticationMessage.Error) || token.IsCancellationRequested) {
                 Stop();
                 return;
             }
+            CurrentUserID = UInt64.Parse(authenticationMessage.Data["user"]["id"].ToString());
+            Logger.Instance.LogMessage(TracingLevel.DEBUG, "CurrentUserID: " + CurrentUserID);
 
-            CurrentUserID = UInt64.Parse(authenticateMessage["data"]["user"]["id"].ToString());
-
-            Logger.Instance.LogMessage(TracingLevel.DEBUG, authenticateMessage.ToString());
-
-
-            if(token.IsCancellationRequested)
-                return;
-
-            GetAvailableGuilds();
+            //GetAvailableGuilds();
         }
 
         private void Disconnect() {
             CurrentUserID = 0;
-            if(pipe == null)
-                return;
-            pipe.Close();
-            pipe.Dispose();
+            messenger.Disconnect();
         }
 
-        private JObject ListenForMessages(CancellationToken token) {
-            byte[] buffer = new byte[2048 * 8];
 
-            while(pipe != null && pipe.IsConnected && token != null && !token.IsCancellationRequested) {
-                try {
-                    int bytesRead = pipe.ReadAsync(buffer, 0, buffer.Length, token).GetAwaiter().GetResult();
-                    if(bytesRead <= 0) {
-                        Task.Delay(10);
-                        continue;
-                    }
+        public void SelectChannel(ChannelTypes channelType, ulong channelID) {
+            if(!IsRunning || !messenger.Connected || (channelType != ChannelTypes.VOICE && channelType != ChannelTypes.TEXT))
+                return;
 
-                    int op = BitConverter.ToInt32(buffer, 0);
-                    int jsonLength = BitConverter.ToInt32(buffer, 4);
-                    string json = Encoding.UTF8.GetString(buffer, 8, jsonLength);
-                    return JsonConvert.DeserializeObject<JObject>(json);
-                }
-                catch(Exception ex) {
-                    Logger.Instance.LogMessage(TracingLevel.ERROR, $"Error in ListenAsync: {ex.StackTrace}");
-                    break;
-                }
+            IPCMessage message;
+            if(channelType == ChannelTypes.VOICE) {
+                message = messenger.SendSelectVoiceChannelRequest(channelID);
+            }
+            else {
+                message = IPCMessage.Empty;
             }
 
-            return null;
+
+            Logger.Instance.LogMessage(TracingLevel.DEBUG, "VoiceState: " + message.ToString());
         }
 
-        private async Task SendMessageAsync(int op, object payload) {
-            var json = JsonConvert.SerializeObject(payload);
-            var jsonBytes = Encoding.UTF8.GetBytes(json);
-            var length = BitConverter.GetBytes(jsonBytes.Length);
-            var opBytes = BitConverter.GetBytes(op);
 
-            using var ms = new MemoryStream();
-            ms.Write(opBytes, 0, 4);
-            ms.Write(length, 0, 4);
-            ms.Write(jsonBytes, 0, jsonBytes.Length);
-
-            await pipe.WriteAsync(ms.ToArray(), 0, (int) ms.Length);
-            await pipe.FlushAsync();
-        }
-
+        /*
         public List<DiscordGuild> GetAvailableGuilds() {
-            if(pipe == null || !pipe.IsConnected) {
+            if(!IsRunning || pipe == null || !pipe.IsConnected) {
                 return null;
             }
 
             List<DiscordGuild> guilds = new List<DiscordGuild>();
 
-
+            // populate the list with all guilds that have been found
             var guildRequest = new {
                 nonce = Guid.NewGuid().ToString(),
                 cmd = "GET_GUILDS",
@@ -252,7 +184,6 @@ namespace DiscordUnfolded {
             if(guildMessage == null) {
                 return null;
             }
-
             var guildData = guildMessage["data"]?["guilds"] as JArray;
             foreach(var guildJToken in guildData) {
                 string id = guildJToken["id"]?.ToString();
@@ -264,13 +195,27 @@ namespace DiscordUnfolded {
                 Logger.Instance.LogMessage(TracingLevel.DEBUG, "DiscordRPC: " + discordGuild.ToString());
             }
 
-
-
-
-
-
             return null;
 
+        }
+        */
+
+        private void SaveTokenToFile(string access_token) {
+            access_token ??= String.Empty;
+
+            var data = new { token = access_token }; 
+            string json = JsonConvert.SerializeObject(data, Formatting.Indented);
+            File.WriteAllText("StoredToken.json", json);
+
+        }
+
+        private string GetTokenFromFile() {
+            if(!File.Exists("StoredToken.json"))
+                return String.Empty;
+
+            string json = File.ReadAllText("StoredToken.json");
+            var data = JsonConvert.DeserializeObject<dynamic>(json);
+            return data.token;
         }
     }
 
