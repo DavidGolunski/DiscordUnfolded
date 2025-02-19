@@ -1,4 +1,5 @@
 ﻿using BarRaider.SdTools;
+using Discord.Audio.Streams;
 using Discord.WebSocket;
 using DiscordUnfolded.DiscordStructure;
 using Newtonsoft.Json;
@@ -91,9 +92,10 @@ namespace DiscordUnfolded.DiscordCommunication {
          * Pipe Reading Options
          */
         private void ListenForMessages() {
-            byte[] buffer = new byte[2048 * 8];
+            byte[] buffer = new byte[1024 * 64];
 
             while(Connected && !cancellationToken.IsCancellationRequested) {
+                
                 try {
                     int bytesRead = pipe.ReadAsync(buffer, 0, buffer.Length, cancellationToken).GetAwaiter().GetResult();
                     if(bytesRead <= 0) {
@@ -104,7 +106,7 @@ namespace DiscordUnfolded.DiscordCommunication {
                     int op = BitConverter.ToInt32(buffer, 0);
                     int jsonLength = BitConverter.ToInt32(buffer, 4);
                     string json = Encoding.UTF8.GetString(buffer, 8, jsonLength);
-
+                    
                     DebugLog("Received Message: " + json);
 
                     JObject messageObject = JsonConvert.DeserializeObject<JObject>(json);
@@ -143,18 +145,7 @@ namespace DiscordUnfolded.DiscordCommunication {
 
             var request = new { v = 1, client_id = clientId };
 
-            // add the request to the pending Request dictionary
-            var tcs = new TaskCompletionSource<JObject>(cancellationToken);
-            pendingRequests[string.Empty] = tcs; // nonce is null for dispatch requests
-
-            SendMessageAsync(0, request).GetAwaiter().GetResult();
-
-            // validate result
-            JObject message = tcs.Task.GetAwaiter().GetResult();
-            if(message == null || message["cmd"]?.ToString() != MessageType.DISPATCH.ToString())
-                return IPCMessage.Empty;
-
-            return new IPCMessage(MessageType.DISPATCH, null, message["data"] as JObject);
+            return SendMessageAndGetIPCMessageResponse(MessageType.DISPATCH, string.Empty, request, 0);
         }
 
         public IPCMessage SendAuthorizeRequest(string clientId) {
@@ -168,22 +159,11 @@ namespace DiscordUnfolded.DiscordCommunication {
                 cmd = MessageType.AUTHORIZE.ToString(),
                 args = new {
                     client_id = clientId,
-                    scopes = new[] { "identify", "rpc", "guilds" }
+                    scopes = new[] { "identify", "guilds", "rpc" }
                 }
             };
 
-            // add the request to the pending Request dictionary
-            var tcs = new TaskCompletionSource<JObject>(cancellationToken);
-            pendingRequests[generatedNonce] = tcs;
-
-            SendMessageAsync(1, request).GetAwaiter().GetResult();
-
-            // validate result
-            JObject message = tcs.Task.GetAwaiter().GetResult();
-            if(message == null || message["cmd"]?.ToString() != MessageType.AUTHORIZE.ToString())
-                return IPCMessage.Empty;
-
-            return new IPCMessage(MessageType.AUTHORIZE, null, message["data"] as JObject);
+            return SendMessageAndGetIPCMessageResponse(MessageType.AUTHORIZE, generatedNonce, request);
         }
 
         public IPCMessage SendAuthenticateRequest(string accessToken) {
@@ -200,18 +180,7 @@ namespace DiscordUnfolded.DiscordCommunication {
                 }
             };
 
-            // add the request to the pending Request dictionary
-            var tcs = new TaskCompletionSource<JObject>(cancellationToken);
-            pendingRequests[generatedNonce] = tcs;
-
-            SendMessageAsync(1, request).GetAwaiter().GetResult();
-
-            // validate result
-            JObject message = tcs.Task.GetAwaiter().GetResult();
-            if(message == null || message["cmd"]?.ToString() != MessageType.AUTHENTICATE.ToString())
-                return IPCMessage.Empty;
-
-            return new IPCMessage(MessageType.AUTHENTICATE, null, message["data"] as JObject);
+            return SendMessageAndGetIPCMessageResponse(MessageType.AUTHENTICATE, generatedNonce, request);
         }
 
         public IPCMessage SendSelectVoiceChannelRequest(ulong channelId) {
@@ -231,23 +200,68 @@ namespace DiscordUnfolded.DiscordCommunication {
                 }
             };
 
-            // add the request to the pending Request dictionary
-            var tcs = new TaskCompletionSource<JObject>(cancellationToken);
-            pendingRequests[generatedNonce] = tcs;
+            return SendMessageAndGetIPCMessageResponse(MessageType.SELECT_VOICE_CHANNEL, generatedNonce, request);
+        }
 
-            SendMessageAsync(1, request).GetAwaiter().GetResult();
-
-            // validate result
-            JObject message = tcs.Task.GetAwaiter().GetResult();
-            if(message == null || message["cmd"]?.ToString() != MessageType.SELECT_VOICE_CHANNEL.ToString())
+        public IPCMessage SendSelectTextChannelRequest(ulong channelId) {
+            if(!Connected || cancellationToken.IsCancellationRequested) {
+                DebugLog("SendSelectTextChannelRequest failed because the pipe was not connected or a cancellation was requested");
                 return IPCMessage.Empty;
+            }
 
-            return new IPCMessage(MessageType.SELECT_VOICE_CHANNEL, null, message["data"] as JObject);
+            string channelIdString = channelId == 0 ? null : channelId.ToString();
+
+            var generatedNonce = Guid.NewGuid().ToString();
+            var request = new {
+                nonce = generatedNonce,
+                cmd = MessageType.SELECT_TEXT_CHANNEL.ToString(),
+                args = new {
+                    channel_id = channelIdString
+                }
+            };
+
+            return SendMessageAndGetIPCMessageResponse(MessageType.SELECT_TEXT_CHANNEL, generatedNonce, request);
+        }
+
+        public IPCMessage SendGetSelectedVoiceChannelRequest() {
+            if(!Connected || cancellationToken.IsCancellationRequested) {
+                DebugLog("SendGetSelectedVoiceChannelRequest failed because the pipe was not connected or a cancellation was requested");
+                return IPCMessage.Empty;
+            }
+
+            var generatedNonce = Guid.NewGuid().ToString();
+            var request = new {
+                nonce = generatedNonce,
+                cmd = MessageType.GET_SELECTED_VOICE_CHANNEL.ToString(),
+                args = new { }
+            };
+
+            return SendMessageAndGetIPCMessageResponse(MessageType.GET_SELECTED_VOICE_CHANNEL, generatedNonce, request);
         }
 
 
+        
 
+        // Creates the IPC Message from a JObject
+        private IPCMessage SendMessageAndGetIPCMessageResponse(MessageType messageType, string nonce, object request, int op = 1) {
+            // add the request to the pending Request dictionary
+            var tcs = new TaskCompletionSource<JObject>(cancellationToken);
+            pendingRequests[nonce] = tcs;
 
+            SendMessageAsync(op, request).GetAwaiter().GetResult();
+
+            // create the IPC Message
+            JObject message = tcs.Task.GetAwaiter().GetResult();
+
+            if(message == null || message["cmd"]?.ToString() != messageType.ToString())
+                return IPCMessage.Empty;
+
+            // check if an error has occured
+            if(message["evt"]?.ToString() == EventType.ERROR.ToString())
+                return new IPCMessage(messageType, message["data"] as JObject, null);
+
+            return new IPCMessage(messageType, null, message["data"] as JObject);
+        }
 
         // general function for sending data via IPC
         private async Task SendMessageAsync(int op, object payload) {
@@ -265,6 +279,7 @@ namespace DiscordUnfolded.DiscordCommunication {
             await pipe.WriteAsync(ms.ToArray(), 0, (int) ms.Length);
             await pipe.FlushAsync();
         }
+
 
         /*
          * Debugging

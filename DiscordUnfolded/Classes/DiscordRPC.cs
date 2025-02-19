@@ -57,9 +57,7 @@ namespace DiscordUnfolded {
             // start the IPC Messenger
             Task.Run(() => messenger.Connect(token), token);
 
-            Task.Delay(10);
-
-            Task.Run(() => Connect(token), token);
+            Connect(token);
 
            Logger.Instance.LogMessage(TracingLevel.INFO, "DiscordRPC Started");
         }
@@ -84,13 +82,24 @@ namespace DiscordUnfolded {
         }
 
         private void Connect(CancellationToken token) {
-            IPCMessage dispathMessage = messenger.SendDispatchRequest(clientId);
-            Logger.Instance.LogMessage(TracingLevel.DEBUG, dispathMessage.ToString());
-
-            if(!string.IsNullOrEmpty(dispathMessage.Error) || token.IsCancellationRequested) {
+            while(!token.IsCancellationRequested && !messenger.Connected) {
+                Task.Delay(100, token);
+            }
+            if(token.IsCancellationRequested) {
                 Stop();
                 return;
             }
+
+
+            IPCMessage dispatchMessage = messenger.SendDispatchRequest(clientId);
+
+            if(dispatchMessage.Error != null || token.IsCancellationRequested) {
+                Stop();
+                return;
+            }
+
+            CurrentUserID = UInt64.Parse(dispatchMessage.Data["user"]["id"].ToString());
+            Logger.Instance.LogMessage(TracingLevel.DEBUG, "CurrentUserID: " + CurrentUserID);
 
             // try getting the previous token from the saved file
 
@@ -99,9 +108,8 @@ namespace DiscordUnfolded {
 
             // If we get here, then authenticating with a previously stored token was unsuccessfull and we need to reauthenticate again
             IPCMessage authorizeMessage = messenger.SendAuthorizeRequest(clientId);
-            Logger.Instance.LogMessage(TracingLevel.DEBUG, authorizeMessage.ToString());
 
-            if(!string.IsNullOrEmpty(authorizeMessage.Error) || token.IsCancellationRequested) {
+            if(authorizeMessage.Error != null || token.IsCancellationRequested) {
                 Stop();
                 return;
             }
@@ -130,12 +138,11 @@ namespace DiscordUnfolded {
 
             // Send Authentication Request after OAuth2 has provided the bearer access token
             IPCMessage authenticationMessage = messenger.SendAuthenticateRequest(accessToken);
-            if(!string.IsNullOrEmpty(authenticationMessage.Error) || token.IsCancellationRequested) {
+            if(authenticationMessage.Error != null || token.IsCancellationRequested) {
                 Stop();
                 return;
             }
-            CurrentUserID = UInt64.Parse(authenticationMessage.Data["user"]["id"].ToString());
-            Logger.Instance.LogMessage(TracingLevel.DEBUG, "CurrentUserID: " + CurrentUserID);
+            
 
             //GetAvailableGuilds();
         }
@@ -145,21 +152,31 @@ namespace DiscordUnfolded {
             messenger.Disconnect();
         }
 
-
+        // selects a voice or text channel.To disconnect from a channel set the channelID to 0
         public void SelectChannel(ChannelTypes channelType, ulong channelID) {
             if(!IsRunning || !messenger.Connected || (channelType != ChannelTypes.VOICE && channelType != ChannelTypes.TEXT))
                 return;
 
-            IPCMessage message;
+            IPCMessage message = null;
             if(channelType == ChannelTypes.VOICE) {
-                message = messenger.SendSelectVoiceChannelRequest(channelID);
+
+                // if the user is already inside of a Voice Channel, disconnect from the channel first
+                IPCMessage currentChannel = messenger.SendGetSelectedVoiceChannelRequest();
+                string currentChannelID = currentChannel.Data?["id"]?.ToString();
+                if(currentChannelID != null) {
+                    message = messenger.SendSelectVoiceChannelRequest(0);
+                }
+                if(channelID.ToString() != currentChannelID) {
+                    message = messenger.SendSelectVoiceChannelRequest(channelID);
+                }
             }
             else {
-                message = IPCMessage.Empty;
+                message = messenger.SendSelectTextChannelRequest(channelID);
             }
 
-
-            Logger.Instance.LogMessage(TracingLevel.DEBUG, "VoiceState: " + message.ToString());
+            if(message != null && message.Error != null) {
+                Logger.Instance.LogMessage(TracingLevel.ERROR, message.ToString());
+            }
         }
 
 

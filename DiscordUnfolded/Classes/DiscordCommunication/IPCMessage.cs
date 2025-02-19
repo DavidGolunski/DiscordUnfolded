@@ -11,7 +11,7 @@ namespace DiscordUnfolded.DiscordCommunication {
         public static IPCMessage Empty = new IPCMessage();
 
         public MessageType MessageType { get; private set; }
-        public string Error { get; private set; }
+        public JObject Error { get; private set; }
         public JObject Data { get; private set; }
 
         private IPCMessage() {
@@ -20,14 +20,14 @@ namespace DiscordUnfolded.DiscordCommunication {
             Data = null;
         }
 
-        public IPCMessage(MessageType messageType, string error, JObject data) {
+        public IPCMessage(MessageType messageType, JObject error, JObject data) {
             MessageType = messageType;
             Error = error;
             Data = data;
         }
 
         public override string ToString() {
-            if(!string.IsNullOrEmpty(Error)) 
+            if(Error != null) 
                 return MessageType.ToString() + " Error: " + Error;
 
             return MessageType.ToString() + " Data: " + Data;

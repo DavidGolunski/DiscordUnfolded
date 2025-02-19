@@ -109,12 +109,12 @@ namespace DiscordUnfolded {
 
             if(channelGridInfo?.ChannelInfo?.ChannelId != null) {
 
-                if(channelGridInfo.UsersInChannel?.Contains(globalSettings.UserID) == true) {
-                    DiscordRPC.Instance.SelectChannel(channelGridInfo.ChannelInfo.ChannelType, 0);
-                }
-                else {
+                //if(channelGridInfo.UsersInChannel?.Contains(globalSettings.UserID) == true) {
+                //    DiscordRPC.Instance.SelectChannel(channelGridInfo.ChannelInfo.ChannelType, 0);
+               // }
+               // else {
                     DiscordRPC.Instance.SelectChannel(channelGridInfo.ChannelInfo.ChannelType, channelGridInfo.ChannelInfo.ChannelId);
-                }
+               // }
             }
 
 
