@@ -26,8 +26,6 @@ namespace DiscordUnfolded.DiscordCommunication {
         private CancellationToken cancellationToken = CancellationToken.None;
         private readonly bool enableExtensiveLogging = false;
 
-
-        private readonly Queue<JObject> messageQueue = new Queue<JObject>();
         private readonly ConcurrentDictionary<string, TaskCompletionSource<JObject>> pendingRequests = new ConcurrentDictionary<string, TaskCompletionSource<JObject>>();
 
 
@@ -426,7 +424,7 @@ namespace DiscordUnfolded.DiscordCommunication {
                 return IPCMessage.Empty;
             }
 
-            if(eventType != EventType.VOICE_STATE_CREATE && eventType != EventType.VOICE_STATE_DELETE && eventType != EventType.VOICE_STATE_UPDATE) {
+            if(eventType != EventType.VOICE_STATE_CREATE && eventType != EventType.VOICE_STATE_DELETE && eventType != EventType.VOICE_STATE_UPDATE && eventType != EventType.SPEAKING_START && eventType != EventType.SPEAKING_STOP) {
                 DebugLog("SendChannelUnsubscribeRequest failed because the Event " + eventType + " is not supported in a channel request");
                 return IPCMessage.Empty;
             }

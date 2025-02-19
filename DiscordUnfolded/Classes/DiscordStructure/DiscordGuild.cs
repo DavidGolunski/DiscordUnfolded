@@ -1,4 +1,5 @@
 ﻿using BarRaider.SdTools;
+using Discord;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -6,7 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace DiscordUnfolded.DiscordStructure {
-    public class DiscordGuild {
+    public class DiscordGuild : IDisposable {
 
 
         #region static guild management
@@ -100,6 +101,19 @@ namespace DiscordUnfolded.DiscordStructure {
 
         public DiscordGuildInfo GetInfo() {
             return new DiscordGuildInfo(GuildId, GuildName, IconUrl);   
+        }
+
+        public void Dispose() {
+            foreach(var textChannel in textChannels.Values) {
+                textChannel.Dispose();
+            }
+            textChannels.Clear();
+
+            foreach(var voiceChannel in voiceChannels.Values) {
+                voiceChannel.Dispose();
+            }
+
+            voiceChannels.Clear();
         }
 
 

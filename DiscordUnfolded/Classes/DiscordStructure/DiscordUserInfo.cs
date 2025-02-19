@@ -13,7 +13,8 @@ namespace DiscordUnfolded.DiscordStructure {
         DISCONNECTED,
         UNMUTED,
         MUTED,
-        DEAFENED
+        DEAFENED,
+        SPEAKING
     }
 
     public class DiscordUserInfo {

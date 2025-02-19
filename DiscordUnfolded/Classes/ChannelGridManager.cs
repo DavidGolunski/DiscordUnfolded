@@ -55,7 +55,7 @@ namespace DiscordUnfolded {
         public int YOffset {
             get => yOffset;
             set {
-                int newValue = Math.Min(value, maxYOffset);
+                int newValue = Math.Min(value, MaxYOffset);
                 newValue = Math.Max(newValue, 0);
 
                 if(yOffset == newValue)
@@ -66,11 +66,11 @@ namespace DiscordUnfolded {
         }
 
         // this is to calculate what the max yOffset should be. We do not want the user to scroll into endlessness, but also do not want to prevent the users to see any data
-        private int maxYOffset {
+        private int MaxYOffset {
             get {
                 int maxSubscribedButtonYPos = 0;
-                foreach((int xPos, int yPos) buttonCoordinates in updateEvents.Keys) {
-                    maxSubscribedButtonYPos = Math.Max(maxSubscribedButtonYPos, buttonCoordinates.yPos);
+                foreach((int xPos, int yPos) in updateEvents.Keys) {
+                    maxSubscribedButtonYPos = Math.Max(maxSubscribedButtonYPos, yPos);
                 }
                 return channelGrid.Count - maxSubscribedButtonYPos - 1;
             }
@@ -270,8 +270,8 @@ namespace DiscordUnfolded {
 
         // sends out an update event to all buttons
         private void UpdateAllButtons() {
-            foreach((int xPos, int yPos) coordinates in updateEvents.Keys) {
-                UpdateButton(coordinates.xPos, coordinates.yPos);
+            foreach((int xPos, int yPos) in updateEvents.Keys) {
+                UpdateButton(xPos, yPos);
             }
         }
 

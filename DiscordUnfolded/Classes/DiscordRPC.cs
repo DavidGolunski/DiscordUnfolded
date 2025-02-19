@@ -34,11 +34,11 @@ namespace DiscordUnfolded {
 
         // A place to store all subscriptions that have been made without any additional parameters
         // Param1: EventType
-        private List<EventType> subscribedGeneral = new List<EventType>();
+        private readonly List<EventType> subscribedGeneral = new List<EventType>();
 
         // A place to store all subscriptions that have been made with a channel ID
         // Param1: EventType, Param2: channelID
-        private List<(EventType, ulong)> subscribedChannels = new List<(EventType, ulong)>();
+        private readonly List<(EventType, ulong)> subscribedChannels = new List<(EventType, ulong)>();
 
 
         public ulong CurrentUserID { get; private set; } = 0;
@@ -194,6 +194,45 @@ namespace DiscordUnfolded {
                 case EventType.CHANNEL_CREATE:
                     AddChannelToGuild(this.SelectedGuild, eventData);
                     break;
+                case EventType.VOICE_STATE_CREATE:
+                    if(this.SelectedGuild == null)
+                        break;
+                    DiscordGuild guild = GetDiscordGuild(this.SelectedGuild.GuildId);
+                    ulong newUserId = UInt64.Parse(eventData["user"]["id"].ToString());
+                    DiscordUser newUser = guild.GetUser(newUserId);
+
+                    DiscordVoiceChannel voiceChannel = this.SelectedGuild.GetVoiceChannel(newUser.GetVoiceChannel().ChannelId);
+                    voiceChannel.AddUser(new DiscordUser(voiceChannel, newUser.UserId, newUser.UserName, newUser.VoiceState, newUser.IconUrl));
+
+                    guild.Dispose();
+                    break;
+                case EventType.VOICE_STATE_DELETE:
+                    if(this.SelectedGuild == null)
+                        break;
+                    ulong userDeleteId = UInt64.Parse(eventData["user"]["id"].ToString());
+                    DiscordUser removedUser = this.SelectedGuild.GetUser(userDeleteId);
+                    removedUser.GetVoiceChannel().RemoveUser(userDeleteId);
+                    break;
+
+                case EventType.VOICE_STATE_UPDATE:
+                    if(this.SelectedGuild == null)
+                        break;
+                    ulong userUpdateId = UInt64.Parse(eventData["user"]["id"].ToString());
+                    VoiceStates newVoiceState = GetVoiceState(eventData["voice_state"]);
+                    this.SelectedGuild.GetUser(userUpdateId).VoiceState = newVoiceState;
+                    break;
+                case EventType.SPEAKING_START:
+                    if(this.SelectedGuild == null)
+                        break;
+                    ulong userSpeakingStartId = UInt64.Parse(eventData["user_id"].ToString());
+                    this.SelectedGuild.GetUser(userSpeakingStartId).VoiceState = VoiceStates.SPEAKING;
+                    break;
+                case EventType.SPEAKING_STOP:
+                    if(this.SelectedGuild == null)
+                        break;
+                    ulong userSpeakingStopId = UInt64.Parse(eventData["user_id"].ToString());
+                    this.SelectedGuild.GetUser(userSpeakingStopId).VoiceState = VoiceStates.UNMUTED;
+                    break;
 
                 default:
                     break;
@@ -269,7 +308,43 @@ namespace DiscordUnfolded {
         }
 
         public DiscordGuild SelectGuild(ulong guildId) {
+            bool guildHasChanged = this.SelectedGuild != null && this.SelectedGuild.GuildId != guildId;
+
+            // if the selected guild has changed, unsubsribe from all channel specific events
+            if(guildHasChanged) {
+                foreach((EventType evt, ulong channelId) in subscribedChannels) {
+                    messenger.SendChannelUnsubscribeRequest(evt, channelId);
+                }
+                subscribedChannels.Clear();
+            }
+
+
+
             this.SelectedGuild = GetDiscordGuild(guildId);
+
+            // resubscribe to all events from channels
+            if(guildHasChanged && this.SelectedGuild != null) {
+
+                foreach(ulong voiceChannelId in this.SelectedGuild.GetOrderedVoiceChannelIDs()) {
+                    messenger.SendChannelSubscribeEvent(EventType.VOICE_STATE_CREATE, voiceChannelId);
+                    subscribedChannels.Add((EventType.VOICE_STATE_CREATE, voiceChannelId));
+
+                    messenger.SendChannelSubscribeEvent(EventType.VOICE_STATE_UPDATE, voiceChannelId);
+                    subscribedChannels.Add((EventType.VOICE_STATE_UPDATE, voiceChannelId));
+
+                    messenger.SendChannelSubscribeEvent(EventType.VOICE_STATE_DELETE, voiceChannelId);
+                    subscribedChannels.Add((EventType.VOICE_STATE_DELETE, voiceChannelId));
+
+                    messenger.SendChannelSubscribeEvent(EventType.SPEAKING_START, voiceChannelId);
+                    subscribedChannels.Add((EventType.SPEAKING_START, voiceChannelId));
+
+                    messenger.SendChannelSubscribeEvent(EventType.SPEAKING_STOP, voiceChannelId);
+                    subscribedChannels.Add((EventType.SPEAKING_STOP, voiceChannelId));
+                }
+            }
+
+
+
             return this.SelectedGuild;
         }
 

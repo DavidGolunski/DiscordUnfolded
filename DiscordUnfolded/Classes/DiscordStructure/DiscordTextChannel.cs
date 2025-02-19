@@ -8,10 +8,10 @@ using System.Threading.Tasks;
 
 namespace DiscordUnfolded.DiscordStructure {
 
-    public class DiscordTextChannel {
+    public class DiscordTextChannel : IDisposable {
 
 
-        private readonly DiscordGuild guild;
+        private DiscordGuild guild;
         public readonly ulong ChannelId;
 
         private string channelName;
@@ -45,6 +45,10 @@ namespace DiscordUnfolded.DiscordStructure {
             this.channelName = channelName;
             this.ChannelType = ChannelTypes.TEXT;
             this.position = position;
+        }
+
+        public void Dispose() {
+            guild = null;
         }
 
         public DiscordChannelInfo GetInfo() {
