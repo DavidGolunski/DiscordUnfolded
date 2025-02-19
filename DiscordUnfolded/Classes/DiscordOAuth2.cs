@@ -44,7 +44,7 @@ namespace DiscordUnfolded {
             return responseData["access_token"];
         }
 
-
+        // refresh a non-expired token
         public static string RefreshToken(string token, string clientID, string clientSecret, CancellationToken cancellationToken) {
             if(token == null || clientID == null || clientSecret == null)
                 return null;
@@ -65,7 +65,7 @@ namespace DiscordUnfolded {
             var response = httpClient.SendAsync(request, cancellationToken).GetAwaiter().GetResult();
 
             if(!response.IsSuccessStatusCode) {
-                throw new Exception($"Error exchanging code: {response.StatusCode}");
+                throw new Exception($"Error exchanging code: {response.StatusCode}" + " -- " + response.RequestMessage.ToString());
             }
 
             var responseBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
@@ -75,6 +75,9 @@ namespace DiscordUnfolded {
             return responseData["access_token"];
         }
 
+
+
+        // revoke the rights from an existing token
         public static void RevokeToken(string token, string clientID, string clientSecret, CancellationToken cancellationToken) {
             if(token == null || clientID == null || clientSecret == null)
                 return;

@@ -31,6 +31,10 @@ namespace DiscordUnfolded.DiscordCommunication {
         private readonly ConcurrentDictionary<string, TaskCompletionSource<JObject>> pendingRequests = new ConcurrentDictionary<string, TaskCompletionSource<JObject>>();
 
 
+        // called when IPC received an event. The first parameter will be the event type and the second parameter will be the "data" from the event as a JObject
+        public event Action<EventType, JObject> OnEventReceived;
+
+
         public IPCMessenger(bool enableExtensiveLogging = false) { 
             this.enableExtensiveLogging = enableExtensiveLogging;
         }
@@ -92,21 +96,17 @@ namespace DiscordUnfolded.DiscordCommunication {
          * Pipe Reading Options
          */
         private void ListenForMessages() {
-            byte[] buffer = new byte[1024 * 64];
+            byte[] buffer = new byte[1024 * 8];
 
             while(Connected && !cancellationToken.IsCancellationRequested) {
                 
                 try {
-                    int bytesRead = pipe.ReadAsync(buffer, 0, buffer.Length, cancellationToken).GetAwaiter().GetResult();
-                    if(bytesRead <= 0) {
+                    string json = ReadJson(buffer);
+                    if(json == null) {
                         Task.Delay(10);
                         continue;
                     }
 
-                    int op = BitConverter.ToInt32(buffer, 0);
-                    int jsonLength = BitConverter.ToInt32(buffer, 4);
-                    string json = Encoding.UTF8.GetString(buffer, 8, jsonLength);
-                    
                     DebugLog("Received Message: " + json);
 
                     JObject messageObject = JsonConvert.DeserializeObject<JObject>(json);
@@ -119,7 +119,7 @@ namespace DiscordUnfolded.DiscordCommunication {
                     }
                     // if no one is waiting on a response then we queue the message up, so it can be interpreted later
                     else {
-                        messageQueue.Enqueue(messageObject);
+                        HandleMessage(messageObject);
                     }
                     return;
                 }
@@ -131,7 +131,42 @@ namespace DiscordUnfolded.DiscordCommunication {
             return;
         }
 
+        // sometimes the payload of channels can go over 1gb. This method allows us to not constantly block a big buffer for these cases
+        private string ReadJson(byte[] standardBuffer) {
+            byte[] metadataBuffer = new byte[8];
 
+            int bytesRead = pipe.ReadAsync(metadataBuffer, 0, metadataBuffer.Length, cancellationToken).GetAwaiter().GetResult();
+            if(bytesRead <= 0) {
+                return null;
+            }
+
+            int op = BitConverter.ToInt32(metadataBuffer, 0);
+            int jsonLength = BitConverter.ToInt32(metadataBuffer, 4);
+
+            int currentIndex = 8;
+            StringBuilder stringBuilder = new StringBuilder();
+            do {
+                int jsonBytesRead = pipe.ReadAsync(standardBuffer, 0, standardBuffer.Length, cancellationToken).GetAwaiter().GetResult();
+
+                stringBuilder.Append(Encoding.UTF8.GetString(standardBuffer, 0, jsonBytesRead));
+                currentIndex += jsonBytesRead;
+
+            } while(currentIndex < jsonLength);
+
+            return stringBuilder.ToString();
+        }
+
+        private void HandleMessage(JObject messageObject) {
+            string eventTypeString = messageObject?["evt"]?.ToString();
+            if(eventTypeString == null) {
+                Logger.Instance.LogMessage(TracingLevel.WARN, "Received an unexpected message: " + messageObject.ToString());
+                return;
+            }
+
+            EventType eventType = (EventType) Enum.Parse(typeof(EventType), eventTypeString);
+            JObject data = messageObject["data"] as JObject;
+            OnEventReceived?.Invoke(eventType, data);
+        }
 
 
         /*
@@ -239,8 +274,180 @@ namespace DiscordUnfolded.DiscordCommunication {
             return SendMessageAndGetIPCMessageResponse(MessageType.GET_SELECTED_VOICE_CHANNEL, generatedNonce, request);
         }
 
+        public IPCMessage SendGetGuildsRequest() {
+            if(!Connected || cancellationToken.IsCancellationRequested) {
+                DebugLog("SendGetGuildsRequest failed because the pipe was not connected or a cancellation was requested");
+                return IPCMessage.Empty;
+            }
 
-        
+            var generatedNonce = Guid.NewGuid().ToString();
+            var request = new {
+                nonce = generatedNonce,
+                cmd = MessageType.GET_GUILDS.ToString(),
+                args = new { }
+            };
+
+            return SendMessageAndGetIPCMessageResponse(MessageType.GET_GUILDS, generatedNonce, request);
+        }
+
+        public IPCMessage SendGetGuildRequest(ulong guildId) {
+            if(!Connected || cancellationToken.IsCancellationRequested) {
+                DebugLog("SendGetGuildResponse failed because the pipe was not connected or a cancellation was requested");
+                return IPCMessage.Empty;
+            }
+
+            var generatedNonce = Guid.NewGuid().ToString();
+            var request = new {
+                nonce = generatedNonce,
+                cmd = MessageType.GET_GUILD.ToString(),
+                args = new {
+                    guild_id = guildId.ToString()
+                }
+            };
+
+            return SendMessageAndGetIPCMessageResponse(MessageType.GET_GUILD, generatedNonce, request);
+        }
+
+        public IPCMessage SendGetChannelsRequest(ulong guildId) {
+            if(!Connected || cancellationToken.IsCancellationRequested) {
+                DebugLog("SendGetChannelsRequest failed because the pipe was not connected or a cancellation was requested");
+                return IPCMessage.Empty;
+            }
+
+            var generatedNonce = Guid.NewGuid().ToString();
+            var request = new {
+                nonce = generatedNonce,
+                cmd = MessageType.GET_CHANNELS.ToString(),
+                args = new {
+                    guild_id = guildId.ToString()
+                }
+            };
+
+            return SendMessageAndGetIPCMessageResponse(MessageType.GET_CHANNELS, generatedNonce, request);
+        }
+
+        public IPCMessage SendGetChannelRequest(ulong channelId) {
+            if(!Connected || cancellationToken.IsCancellationRequested) {
+                DebugLog("SendGetChannelRequest failed because the pipe was not connected or a cancellation was requested");
+                return IPCMessage.Empty;
+            }
+
+            var generatedNonce = Guid.NewGuid().ToString();
+            var request = new {
+                nonce = generatedNonce,
+                cmd = MessageType.GET_CHANNEL.ToString(),
+                args = new {
+                    channel_id = channelId.ToString()
+                }
+            };
+
+            return SendMessageAndGetIPCMessageResponse(MessageType.GET_CHANNEL, generatedNonce, request);
+        }
+
+
+        /*
+         * Subscribing and Unsibscribing from Events
+         */
+
+        // sends a subscribe event for options that do not need any special parameters
+        public IPCMessage SendGeneralSubscribeEvent(EventType eventType) {
+            if(!Connected || cancellationToken.IsCancellationRequested) {
+                DebugLog("SendGeneralSubscribeEvent failed because the pipe was not connected or a cancellation was requested");
+                return IPCMessage.Empty;
+            }
+
+            if(eventType != EventType.GUILD_CREATE && eventType != EventType.CHANNEL_CREATE) {
+                DebugLog("SendGeneralSubscribeEvent failed because the Event " + eventType + " is not supported in a general request");
+                return IPCMessage.Empty;
+            }
+
+            var generatedNonce = Guid.NewGuid().ToString();
+            var request = new {
+                nonce = generatedNonce,
+                cmd = MessageType.SUBSCRIBE.ToString(),
+                args = new { },
+                evt = eventType.ToString()
+            };
+
+            return SendMessageAndGetIPCMessageResponse(MessageType.SUBSCRIBE, generatedNonce, request);
+        }
+
+
+        // sends a subscribe event for options that only need a channel_id as a parameter
+        public IPCMessage SendChannelSubscribeEvent(EventType eventType, ulong channelID) {
+            if(!Connected || cancellationToken.IsCancellationRequested) {
+                DebugLog("SendChannelSubscribeEvent failed because the pipe was not connected or a cancellation was requested");
+                return IPCMessage.Empty;
+            }
+
+            if(eventType != EventType.VOICE_STATE_CREATE && eventType != EventType.VOICE_STATE_DELETE && eventType != EventType.VOICE_STATE_UPDATE) {
+                DebugLog("SendChannelSubscribeEvent failed because the Event " + eventType + " is not supported in a channel request");
+                return IPCMessage.Empty;
+            }
+
+            var generatedNonce = Guid.NewGuid().ToString();
+            var request = new {
+                nonce = generatedNonce,
+                cmd = MessageType.SUBSCRIBE.ToString(),
+                args = new {
+                    channel_id = channelID.ToString()
+                },
+                evt = eventType.ToString()
+            };
+
+            return SendMessageAndGetIPCMessageResponse(MessageType.SUBSCRIBE, generatedNonce, request);
+        }
+
+        public IPCMessage SendGeneralUnsubscribeRequest(EventType eventType) {
+            if(!Connected || cancellationToken.IsCancellationRequested) {
+                DebugLog("SendGeneralUnsubscribeRequest failed because the pipe was not connected or a cancellation was requested");
+                return IPCMessage.Empty;
+            }
+
+            if(eventType != EventType.GUILD_CREATE && eventType != EventType.CHANNEL_CREATE) {
+                DebugLog("SendGeneralUnsubscribeRequest failed because the Event " + eventType + " is not supported in a general request");
+                return IPCMessage.Empty;
+            }
+
+            var generatedNonce = Guid.NewGuid().ToString();
+            var request = new {
+                nonce = generatedNonce,
+                cmd = MessageType.UNSUBSCRIBE.ToString(),
+                args = new { },
+                evt = eventType.ToString()
+            };
+
+            return SendMessageAndGetIPCMessageResponse(MessageType.UNSUBSCRIBE, generatedNonce, request);
+        }
+
+        public IPCMessage SendChannelUnsubscribeRequest(EventType eventType, ulong channelID) {
+            if(!Connected || cancellationToken.IsCancellationRequested) {
+                DebugLog("SendChannelUnsubscribeRequest failed because the pipe was not connected or a cancellation was requested");
+                return IPCMessage.Empty;
+            }
+
+            if(eventType != EventType.VOICE_STATE_CREATE && eventType != EventType.VOICE_STATE_DELETE && eventType != EventType.VOICE_STATE_UPDATE) {
+                DebugLog("SendChannelUnsubscribeRequest failed because the Event " + eventType + " is not supported in a channel request");
+                return IPCMessage.Empty;
+            }
+
+            var generatedNonce = Guid.NewGuid().ToString();
+            var request = new {
+                nonce = generatedNonce,
+                cmd = MessageType.UNSUBSCRIBE.ToString(),
+                args = new {
+                    channel_id = channelID.ToString()
+                },
+                evt = eventType.ToString()
+            };
+
+            return SendMessageAndGetIPCMessageResponse(MessageType.UNSUBSCRIBE, generatedNonce, request);
+        }
+
+
+        /*
+         * General IPC helper functions
+         */
 
         // Creates the IPC Message from a JObject
         private IPCMessage SendMessageAndGetIPCMessageResponse(MessageType messageType, string nonce, object request, int op = 1) {
