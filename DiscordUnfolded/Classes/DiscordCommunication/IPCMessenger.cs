@@ -117,7 +117,7 @@ namespace DiscordUnfolded.DiscordCommunication {
                     else {
                         HandleMessage(messageObject);
                     }
-                    Task.Delay(5);
+                    Task.Delay(1);
                     return;
                 }
                 catch(Exception ex) {
@@ -140,9 +140,6 @@ namespace DiscordUnfolded.DiscordCommunication {
             int op = BitConverter.ToInt32(metadataBuffer, 0);
             int jsonLength = BitConverter.ToInt32(metadataBuffer, 4);
 
-            // delay the reading. In some cases we might read the jsonlength beofre the entire json has been loaded
-            Task.Delay(1);
-
             int currentIndex = 0;
             StringBuilder stringBuilder = new StringBuilder();
             do {
@@ -160,6 +157,8 @@ namespace DiscordUnfolded.DiscordCommunication {
 
         private void HandleMessage(JObject messageObject) {
             string eventTypeString = messageObject?["evt"]?.ToString();
+            Logger.Instance.LogMessage(TracingLevel.DEBUG, "Received Message with event " + eventTypeString);
+
             if(eventTypeString == null) {
                 Logger.Instance.LogMessage(TracingLevel.WARN, "Received an unexpected message: " + messageObject.ToString());
                 return;
@@ -406,7 +405,7 @@ namespace DiscordUnfolded.DiscordCommunication {
                 return IPCMessage.Empty;
             }
 
-            if(eventType != EventType.VOICE_STATE_CREATE && eventType != EventType.VOICE_STATE_DELETE && eventType != EventType.VOICE_STATE_UPDATE) {
+            if(eventType != EventType.VOICE_STATE_CREATE && eventType != EventType.VOICE_STATE_DELETE && eventType != EventType.VOICE_STATE_UPDATE && eventType != EventType.SPEAKING_START && eventType != EventType.SPEAKING_STOP) {
                 DebugLog("SendChannelSubscribeEvent failed because the Event " + eventType + " is not supported in a channel request");
                 return IPCMessage.Empty;
             }

@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using DiscordUnfolded.DiscordStructure;
 using Discord;
+using DiscordUnfolded.DiscordCommunication;
 
 namespace DiscordUnfolded {
 
@@ -77,10 +78,6 @@ namespace DiscordUnfolded {
         }
 
         private readonly Dictionary<(int, int), EventHandler<ChannelGridInfo>> updateEvents = new Dictionary<(int, int), EventHandler<ChannelGridInfo>>();
-        private DiscordGuild selectedGuild = null;
-        public DiscordGuild SelectedGuild {
-            get => selectedGuild;
-        }
 
 
         // a representation of all information that is available from a guild on a grid
@@ -95,13 +92,13 @@ namespace DiscordUnfolded {
                 }
             }
 
-            ServerBrowserManager.Instance.SubscribeToSelectedGuild(OnSelectedGuildChanged, true);
+            DiscordRPC.Instance.OnSelectedGuildChanged += OnSelectedGuildChanged;
+            OnSelectedGuildChanged(DiscordRPC.Instance.SelectedGuild);
         }
 
         ~ChannelGridManager() {
             Logger.Instance.LogMessage(TracingLevel.WARN, "ChannelGridManager Deconstructor called");
-            this.selectedGuild = null;
-            ServerBrowserManager.Instance.UnsubscribeFromSelectedGuild(OnSelectedGuildChanged);
+            DiscordRPC.Instance.OnSelectedGuildChanged -= OnSelectedGuildChanged;
         }
 
 
@@ -135,51 +132,29 @@ namespace DiscordUnfolded {
          */
 
         // unsubscribe from previous guild and subscribe to all events in the new guild
-        private void OnSelectedGuildChanged(object sender, DiscordGuildInfo discordGuildInfo) {
-            // check that actually something has changed
-            if(selectedGuild == null && discordGuildInfo == null)
-                return;
-
-            DiscordGuild newGuild = DiscordGuild.GetGuild(discordGuildInfo.GuildId);
-
-            if(selectedGuild == null && newGuild == null)
-                return;
-
+        private void OnSelectedGuildChanged(DiscordGuild discordGuild) {
 
             // unsubscribe from all channels and users in the old guild
-            if(this.selectedGuild != null) {
-                this.selectedGuild.OnTextChannelInfoChanged -= OnTextChannelInfoChanged;
-                this.selectedGuild.OnTextChannelChanged -= OnTextChannelChanged;
-
-                this.selectedGuild.OnVoiceChannelInfoChanged -= OnVoiceChannelInfoChanged;
-                this.selectedGuild.OnTextChannelChanged -= OnTextChannelChanged;
-
-                this.selectedGuild.OnUserInfoChanged -= OnUserInfoChanged;
-                this.selectedGuild.OnUserChanged -= OnUserChanged;
-            }
-
-
-            this.selectedGuild = null;
-
-
-            this.selectedGuild = newGuild;
+            // DiscordRPC automatically unsubscribes all events when the selected guild changes
 
 
             // null handling
-            if(selectedGuild == null) {
+            if(discordGuild == null) {
                 UpdateChannelGrid();
                 return;
             }
 
             // subscribe to events in new guild
-            this.selectedGuild.OnTextChannelInfoChanged += OnTextChannelInfoChanged;
-            this.selectedGuild.OnTextChannelChanged += OnTextChannelChanged;
+            discordGuild.OnTextChannelInfoChanged += OnTextChannelInfoChanged;
+            discordGuild.OnTextChannelChanged += OnTextChannelChanged;
 
-            this.selectedGuild.OnVoiceChannelInfoChanged += OnVoiceChannelInfoChanged;
-            this.selectedGuild.OnTextChannelChanged += OnVoiceChannelChanged;
+            discordGuild.OnVoiceChannelInfoChanged += OnVoiceChannelInfoChanged;
+            discordGuild.OnTextChannelChanged += OnVoiceChannelChanged;
 
-            this.selectedGuild.OnUserInfoChanged += OnUserInfoChanged;
-            this.selectedGuild.OnUserChanged += OnUserChanged;
+            discordGuild.OnUserInfoChanged += OnUserInfoChanged;
+            discordGuild.OnUserChanged += OnUserChanged;
+
+            Logger.Instance.LogMessage(TracingLevel.DEBUG, "ChannelGridManager - on Selected Guild Changed: " + discordGuild);
 
             UpdateChannelGrid();
         }
@@ -214,14 +189,14 @@ namespace DiscordUnfolded {
         public void UpdateChannelGrid() {
             ClearChannelGrid();
 
-            if(selectedGuild == null) {
+            if(DiscordRPC.Instance.SelectedGuild == null) {
                 UpdateAllButtons();
                 return;
             }
 
-            List<ulong> voiceChannelIDs = selectedGuild.GetOrderedVoiceChannelIDs();
+            List<ulong> voiceChannelIDs = DiscordRPC.Instance.SelectedGuild.GetOrderedVoiceChannelIDs();
             foreach(ulong voiceChannelID in voiceChannelIDs) {
-                DiscordVoiceChannel voiceChannel = selectedGuild.GetVoiceChannel(voiceChannelID);
+                DiscordVoiceChannel voiceChannel = DiscordRPC.Instance.SelectedGuild.GetVoiceChannel(voiceChannelID);
 
                 channelGrid.Add(new List<ChannelGridInfo>());
                 List<ulong> userIDsInVoiceChannel = voiceChannel.GetUserIDs();
@@ -248,12 +223,12 @@ namespace DiscordUnfolded {
                 }
             }
 
-            List<ulong> textChannelIDs = selectedGuild.GetOrderedTextChannelIDs();
+            List<ulong> textChannelIDs = DiscordRPC.Instance.SelectedGuild.GetOrderedTextChannelIDs();
             for(int i = 0; i < textChannelIDs.Count; i++) {
                 if(i % Width == 0) {
                     channelGrid.Add(new List<ChannelGridInfo>());
                 }
-                DiscordTextChannel textChannel = selectedGuild.GetTextChannel(textChannelIDs[i]);
+                DiscordTextChannel textChannel = DiscordRPC.Instance.SelectedGuild.GetTextChannel(textChannelIDs[i]);
                 channelGrid.Last().Add(new ChannelGridInfo(textChannel.GetInfo()));
             }
 

@@ -62,7 +62,7 @@ namespace DiscordUnfolded.DiscordCommunication {
             var content = new FormUrlEncodedContent(values);
             var requestUrl = "https://discord.com/api/v10/oauth2/token";
 
-            var response = httpClient.PostAsync(requestUrl, content).GetAwaiter().GetResult();
+            var response = httpClient.PostAsync(requestUrl, content, cancellationToken).GetAwaiter().GetResult();
 
             if(!response.IsSuccessStatusCode) {
                 throw new Exception($"Error exchanging code: {response.StatusCode}" + " -- " + response.RequestMessage.ToString());

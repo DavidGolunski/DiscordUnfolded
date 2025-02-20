@@ -3,6 +3,7 @@ using Discord;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -104,6 +105,8 @@ namespace DiscordUnfolded.DiscordStructure {
         }
 
         public void Dispose() {
+            UnsubscribeAllEventHandlers();
+
             foreach(var textChannel in textChannels.Values) {
                 textChannel.Dispose();
             }
@@ -186,6 +189,30 @@ namespace DiscordUnfolded.DiscordStructure {
                 }
             }
             return null;
+        }
+
+
+
+
+        private void UnsubscribeAllEventHandlers() {
+            Type type = this.GetType();
+            string[] eventNames = new string[]
+            {
+            "OnGuildInfoChanged",
+            "OnTextChannelChanged",
+            "OnTextChannelInfoChanged",
+            "OnVoiceChannelChanged",
+            "OnVoiceChannelInfoChanged",
+            "OnUserChanged",
+            "OnUserInfoChanged"
+            };
+
+            foreach(var field in type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)) {
+                if(Array.Exists(eventNames, name => name == field.Name) &&
+                    field.FieldType.IsGenericType && field.FieldType.GetGenericTypeDefinition() == typeof(EventHandler<>)) {
+                    field.SetValue(this, null);
+                }
+            }
         }
 
 

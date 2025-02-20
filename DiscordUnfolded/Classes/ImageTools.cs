@@ -35,7 +35,7 @@ namespace DiscordUnfolded.Classes {
                 return resizedBitmap;
             }
             catch(Exception ex) {
-                Logger.Instance.LogMessage(TracingLevel.ERROR, ex.StackTrace);
+                Logger.Instance.LogMessage(TracingLevel.ERROR, "Error while retrieving Bitmap with URL: " +  imageUrl + " ErrorMessage: " + ex.StackTrace);
                 return null;
             }
         }

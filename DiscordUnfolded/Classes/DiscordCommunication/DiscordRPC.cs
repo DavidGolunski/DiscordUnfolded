@@ -56,6 +56,7 @@ namespace DiscordUnfolded.DiscordCommunication {
 
 
         public DiscordGuild SelectedGuild { get; private set; } = null;
+        public event Action<DiscordGuild> OnSelectedGuildChanged;
 
 
         private DiscordRPC() {
@@ -199,7 +200,7 @@ namespace DiscordUnfolded.DiscordCommunication {
 
         private void ReadEventQueue(CancellationToken token) {
             while(messenger.Connected && IsRunning && !token.IsCancellationRequested) {
-                if(messenger.EventQueue.Count == 0) {
+                if(messenger.EventQueue.Count == 0 || blockEvents) {
                     Task.Delay(10);
                     continue;
                 }
@@ -215,9 +216,10 @@ namespace DiscordUnfolded.DiscordCommunication {
 
             switch(eventType) {
                 case EventType.GUILD_CREATE:
-                    ulong newGuildId = UInt64.Parse(eventData["id"]?.ToString());
-                    string newGuildName = eventData["name"]?.ToString();
-                    string newGuildIconUrl = eventData["icon_url"]?.ToString();
+                    ulong newGuildId = UInt64.Parse(eventData["guild"]["id"]?.ToString());
+                    string newGuildName = eventData["guild"]["name"]?.ToString();
+                    string newGuildIconUrl = eventData["guild"]["icon_url"]?.ToString();
+                    newGuildIconUrl = GetModifiedURL(newGuildIconUrl);
 
                     messenger.SendGuildSubscribeEvent(EventType.GUILD_STATUS, newGuildId);
                     subscribedGuilds.Add((EventType.GUILD_STATUS, newGuildId));
@@ -226,9 +228,10 @@ namespace DiscordUnfolded.DiscordCommunication {
                     OnAvailableGuildsChanged?.Invoke(AvailableGuilds);
                     break;
                 case EventType.GUILD_STATUS:
-                    ulong updatedGuildId = UInt64.Parse(eventData["id"]?.ToString());
-                    string updatedGuildName = eventData["name"]?.ToString();
-                    string updatedGuildIconUrl = eventData["icon_url"]?.ToString();
+                    ulong updatedGuildId = UInt64.Parse(eventData["guild"]["id"]?.ToString());
+                    string updatedGuildName = eventData["guild"]["name"]?.ToString();
+                    string updatedGuildIconUrl = eventData["guild"]["icon_url"]?.ToString();
+                    updatedGuildIconUrl = GetModifiedURL(updatedGuildIconUrl);
 
                     DiscordGuildInfo updatedDiscordGuildInfo = new DiscordGuildInfo(updatedGuildId, updatedGuildName, updatedGuildIconUrl);
                     foreach(var availableGuild in AvailableGuilds) {
@@ -245,12 +248,12 @@ namespace DiscordUnfolded.DiscordCommunication {
                             break;
                         }
                     }
-
-                    Logger.Instance.LogMessage(TracingLevel.DEBUG, "Guild Status event called");
                     break;
                 case EventType.CHANNEL_CREATE:
                     // ToDo: Fix this. The Channel Create message does not contain the guild_id
                     // AddChannelToGuild(this.SelectedGuild, eventData);
+                    
+
                     break;
                 case EventType.VOICE_STATE_CREATE:
                     if(this.SelectedGuild == null)
@@ -261,7 +264,7 @@ namespace DiscordUnfolded.DiscordCommunication {
 
                     DiscordVoiceChannel voiceChannel = this.SelectedGuild.GetVoiceChannel(newUser.GetVoiceChannel().ChannelId);
                     voiceChannel.AddUser(new DiscordUser(voiceChannel, newUser.UserId, newUser.UserName, newUser.VoiceState, newUser.IconUrl));
-
+                    Logger.Instance.LogMessage(TracingLevel.DEBUG, "DiscordRPC - Create User: " + newUserId);
                     guild.Dispose();
                     break;
                 case EventType.VOICE_STATE_DELETE:
@@ -270,6 +273,7 @@ namespace DiscordUnfolded.DiscordCommunication {
                     ulong userDeleteId = UInt64.Parse(eventData["user"]["id"].ToString());
                     DiscordUser removedUser = this.SelectedGuild.GetUser(userDeleteId);
                     removedUser.GetVoiceChannel().RemoveUser(userDeleteId);
+                    Logger.Instance.LogMessage(TracingLevel.DEBUG, "DiscordRPC - Removed User: " + userDeleteId);
                     break;
 
                 case EventType.VOICE_STATE_UPDATE:
@@ -277,7 +281,9 @@ namespace DiscordUnfolded.DiscordCommunication {
                         break;
                     ulong userUpdateId = UInt64.Parse(eventData["user"]["id"].ToString());
                     VoiceStates newVoiceState = GetVoiceState(eventData["voice_state"]);
+                    Logger.Instance.LogMessage(TracingLevel.DEBUG, newVoiceState.ToString() + " Old Voice State: " + this.SelectedGuild.GetUser(userUpdateId).VoiceState.ToString());
                     this.SelectedGuild.GetUser(userUpdateId).VoiceState = newVoiceState;
+                    Logger.Instance.LogMessage(TracingLevel.DEBUG, "DiscordRPC - Updated User: " + userUpdateId);
                     break;
                 case EventType.SPEAKING_START:
                     if(this.SelectedGuild == null)
@@ -364,18 +370,7 @@ namespace DiscordUnfolded.DiscordCommunication {
                 string name = guildJToken["name"]?.ToString();
                 string iconUrl = guildJToken["icon_url"]?.ToString();
 
-                // remove any parameters after the "?" and change the file type to .png
-                if(!string.IsNullOrEmpty(iconUrl)) {
-                    int questionMarkIndex = iconUrl.IndexOf('?');
-                    if(questionMarkIndex != -1) {
-                        iconUrl = iconUrl.Substring(0, questionMarkIndex);
-                    }
-
-                    // Replace ".webp" with ".png" if it ends with ".webp"
-                    if(iconUrl.EndsWith(".webp", StringComparison.OrdinalIgnoreCase)) {
-                        iconUrl = iconUrl.Substring(0, iconUrl.Length - 5) + ".png";
-                    }
-                }
+                iconUrl = GetModifiedURL(iconUrl);
 
                 DiscordGuildInfo discordGuildInfo = new DiscordGuildInfo(id, name, iconUrl);
 
@@ -394,8 +389,8 @@ namespace DiscordUnfolded.DiscordCommunication {
             blockEvents = false;
         }
 
-        public DiscordGuild SelectGuild(ulong guildId) {
-            bool guildHasChanged = this.SelectedGuild != null && this.SelectedGuild.GuildId != guildId;
+        public void SelectGuild(ulong guildId) {
+            bool guildHasChanged = (this.SelectedGuild == null && guildId != 0) ||  (this.SelectedGuild != null && this.SelectedGuild.GuildId != guildId);
 
             // if the selected guild has changed, unsubsribe from all channel specific events
             if(guildHasChanged) {
@@ -406,13 +401,16 @@ namespace DiscordUnfolded.DiscordCommunication {
             }
 
 
+            this.SelectedGuild?.Dispose();
 
             this.SelectedGuild = GetDiscordGuild(guildId);
 
             // resubscribe to all events from channels
             if(guildHasChanged && this.SelectedGuild != null) {
 
+
                 foreach(ulong voiceChannelId in this.SelectedGuild.GetOrderedVoiceChannelIDs()) {
+
                     messenger.SendChannelSubscribeEvent(EventType.VOICE_STATE_CREATE, voiceChannelId);
                     subscribedChannels.Add((EventType.VOICE_STATE_CREATE, voiceChannelId));
 
@@ -434,8 +432,7 @@ namespace DiscordUnfolded.DiscordCommunication {
             if(this.SelectedGuild == null)
                 UpdateAvailableGuilds();
 
-
-            return this.SelectedGuild;
+            OnSelectedGuildChanged?.Invoke(this.SelectedGuild);
         }
 
 
@@ -474,7 +471,7 @@ namespace DiscordUnfolded.DiscordCommunication {
                 int type = Int32.Parse(channelJToken["type"].ToString());
 
 
-                if(type != 0 && type != 2 && type != 4 && type != 5) {
+                if(type != 0 && type != 2 && type != 5) {
                     continue;
                 }
 
@@ -513,7 +510,7 @@ namespace DiscordUnfolded.DiscordCommunication {
                 return false;
 
             // text channel
-            if(type == 0 || type == 4 || type == 5) {
+            if(type == 0 || type == 5) {
                 // dont add the channel if it already exists inside the guild
                 if(discordGuild.GetTextChannel(channelId) != null)
                     return false;
@@ -540,7 +537,7 @@ namespace DiscordUnfolded.DiscordCommunication {
                     string avatar = userJToken["user"]["avatar"]?.ToString();
                     string iconUrl = null;
 
-                    if(avatar != null) {
+                    if(string.IsNullOrEmpty(avatar)) {
                         iconUrl = $"https://cdn.discordapp.com/avatars/{userId}/{avatar}.png";
                     }
 
@@ -564,13 +561,31 @@ namespace DiscordUnfolded.DiscordCommunication {
             if(voiceStateInfo == null)
                 return VoiceStates.DISCONNECTED;
 
-            if(voiceStateInfo["deaf"]?.ToString() == "true" || voiceStateInfo["self_dead"]?.ToString() == "true") 
+            if(voiceStateInfo["deaf"]?.ToString() == "True" || voiceStateInfo["self_deaf"]?.ToString() == "True") 
                 return VoiceStates.DEAFENED;
 
-            if(voiceStateInfo["mute"]?.ToString() == "true" || voiceStateInfo["self_mute"]?.ToString() == "true" ) 
+            if(voiceStateInfo["mute"]?.ToString() == "True" || voiceStateInfo["self_mute"]?.ToString() == "True" ) 
                 return VoiceStates.MUTED;
 
             return VoiceStates.UNMUTED;
+        }
+
+        // returns a changed Icon URL that can be read by the Image Stream
+        private string GetModifiedURL(string iconUrl) {
+            // remove any parameters after the "?" and change the file type to .png
+            if(string.IsNullOrEmpty(iconUrl))
+                return null;
+
+            int questionMarkIndex = iconUrl.IndexOf('?');
+            if(questionMarkIndex != -1) {
+                iconUrl = iconUrl.Substring(0, questionMarkIndex);
+            }
+
+            // Replace ".webp" with ".png" if it ends with ".webp"
+            if(iconUrl.EndsWith(".webp", StringComparison.OrdinalIgnoreCase)) {
+                iconUrl = iconUrl.Substring(0, iconUrl.Length - 5) + ".png";
+            }
+            return iconUrl;
         }
 
 

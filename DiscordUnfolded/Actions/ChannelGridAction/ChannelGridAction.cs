@@ -146,11 +146,11 @@ namespace DiscordUnfolded {
             //check if the user is already inside a voice channel
             ulong channelID = channelGridInfo.ChannelInfo.ChannelId;
 
-            DiscordGuild guild = ChannelGridManager.Instance.SelectedGuild;
+            DiscordGuild guild = DiscordRPC.Instance.SelectedGuild;
             if(guild == null) 
                 return;
 
-            DiscordUser user = ChannelGridManager.Instance.SelectedGuild?.GetUser(globalSettings.UserID);
+            DiscordUser user = DiscordRPC.Instance.SelectedGuild?.GetUser(globalSettings.UserID);
 
             // for joining the channel via keybind if possible 
             if(user == null) {
@@ -184,7 +184,7 @@ namespace DiscordUnfolded {
             if(newChannelGridInfo == null || (newChannelGridInfo.Equals(this.channelGridInfo) && this.lastUsedUserID == globalSettings.UserID))
                 return;
 
-            Logger.Instance.LogMessage(TracingLevel.DEBUG, "ChannelGridManager: ButtonUpdate requirements fullfilled. XPos: " + settings.XPos + " YPos: " + settings.YPos + " oldChannelGridInfo: " + this.channelGridInfo + " newChannelGridInfo: " + newChannelGridInfo);
+            //Logger.Instance.LogMessage(TracingLevel.DEBUG, "ChannelGridAction: ButtonUpdate requirements fullfilled. XPos: " + settings.XPos + " YPos: " + settings.YPos + " oldChannelGridInfo: " + this.channelGridInfo + " newChannelGridInfo: " + newChannelGridInfo);
             this.channelGridInfo = newChannelGridInfo;
             this.lastUsedUserID = globalSettings.UserID;
 
@@ -263,6 +263,10 @@ namespace DiscordUnfolded {
             }
             else if(userInfo.VoiceState == VoiceStates.MUTED) {
                 highlightBitmap = ImageTools.GetBitmapFromFilePath("./Images/BigYellowHighlight@2x.png");
+                bitmap = ImageTools.MergeBitmaps(bitmap, highlightBitmap);
+            }
+            else if(userInfo.VoiceState == VoiceStates.SPEAKING) {
+                highlightBitmap = ImageTools.GetBitmapFromFilePath("./Images/BigGreenHighlight@2x.png");
                 bitmap = ImageTools.MergeBitmaps(bitmap, highlightBitmap);
             }
 

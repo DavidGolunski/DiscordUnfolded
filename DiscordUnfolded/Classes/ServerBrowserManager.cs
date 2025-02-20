@@ -46,21 +46,6 @@ namespace DiscordUnfolded {
 
         private readonly Dictionary<int, EventHandler<DiscordGuildInfo>> updateEvents = new Dictionary<int, EventHandler<DiscordGuildInfo>>();
 
-
-
-        private DiscordGuildInfo selectedGuild = null;
-        public DiscordGuildInfo SelectedGuild {
-            get => selectedGuild;
-            set {
-                if(value == selectedGuild)
-                    return;
-                selectedGuild = value;
-                OnSelectedGuildChanged();
-            }
-        }
-        private event EventHandler<DiscordGuildInfo> SelectedGuildEvents;
-
-
         private ServerBrowserManager() { 
 
             for(int i= 0; i < maxServerButtons; i++) {
@@ -123,28 +108,6 @@ namespace DiscordUnfolded {
             }
             int guildIndex = (position + Offset) % DiscordRPC.Instance.AvailableGuilds.Count; // Calculate which guild this position corresponds to
             return guildIndex < DiscordRPC.Instance.AvailableGuilds.Count ? DiscordRPC.Instance.AvailableGuilds[guildIndex] : null;
-        }
-
-        #endregion
-
-        #region Selected Guild
-
-        public void SubscribeToSelectedGuild(EventHandler<DiscordGuildInfo> handler, bool instantlyUpdate = false) {
-            SelectedGuildEvents += handler;
-
-            if(!instantlyUpdate)
-                return;
-
-            handler.Invoke(this, selectedGuild);
-        }
-
-        public void UnsubscribeFromSelectedGuild(EventHandler<DiscordGuildInfo> handler) {
-            SelectedGuildEvents -= handler;
-        }
-
-        private void OnSelectedGuildChanged() {
-            DiscordRPC.Instance.SelectGuild(SelectedGuild.GuildId);
-            SelectedGuildEvents?.Invoke(this, SelectedGuild);
         }
 
         #endregion

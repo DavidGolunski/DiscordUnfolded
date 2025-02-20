@@ -11,6 +11,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using DiscordUnfolded.DiscordStructure;
+using DiscordUnfolded.DiscordCommunication;
 
 namespace DiscordUnfolded {
     [PluginActionId("com.davidgolunski.discordunfolded.servergridaction")]
@@ -33,16 +34,19 @@ namespace DiscordUnfolded {
             }
 
             ServerBrowserManager.Instance.SubscribeToPosition(settings.Position, UpdateCurrentGuild, true);
-            ServerBrowserManager.Instance.SubscribeToSelectedGuild(UpdateSelectedGuild, true);
+
+            DiscordRPC.Instance.OnSelectedGuildChanged += UpdateSelectedGuild;
+            UpdateSelectedGuild(DiscordRPC.Instance.SelectedGuild);
         }
 
         public override void Dispose() {
             ServerBrowserManager.Instance.UnsubscribeFromPosition(settings.Position, UpdateCurrentGuild);
-            ServerBrowserManager.Instance.UnsubscribeFromSelectedGuild(UpdateSelectedGuild);
+            DiscordRPC.Instance.OnSelectedGuildChanged -= UpdateSelectedGuild;
         }
 
         public override void KeyPressed(KeyPayload payload) {
-            ServerBrowserManager.Instance.SelectedGuild = currentGuildInfo;
+            ulong guildID = currentGuildInfo == null ? 0 : currentGuildInfo.GuildId;
+            DiscordRPC.Instance.SelectGuild(guildID);
         }
 
         public override void KeyReleased(KeyPayload payload) { }
@@ -64,7 +68,8 @@ namespace DiscordUnfolded {
         }
 
 
-        private void UpdateSelectedGuild(object sender, DiscordGuildInfo selectedGuildInfo) {
+        private void UpdateSelectedGuild(DiscordGuild discordGuild) {
+            DiscordGuildInfo selectedGuildInfo = discordGuild?.GetInfo();
             if(this.selectedGuildInfo == null && selectedGuildInfo == null)
                 return;
 

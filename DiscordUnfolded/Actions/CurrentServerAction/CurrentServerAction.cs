@@ -12,6 +12,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using DiscordUnfolded.DiscordStructure;
+using DiscordUnfolded.DiscordCommunication;
 
 namespace DiscordUnfolded {
     [PluginActionId("com.davidgolunski.discordunfolded.currentserveraction")]
@@ -21,11 +22,12 @@ namespace DiscordUnfolded {
 
 
         public CurrentServerAction(SDConnection connection, InitialPayload payload) : base(connection, payload) {
-            ServerBrowserManager.Instance.SubscribeToSelectedGuild(UpdateButton, true);
+            DiscordRPC.Instance.OnSelectedGuildChanged += UpdateButton;
+            UpdateButton(DiscordRPC.Instance.SelectedGuild);
         }
 
         public override void Dispose() {
-            ServerBrowserManager.Instance.UnsubscribeFromSelectedGuild(UpdateButton);
+            DiscordRPC.Instance.OnSelectedGuildChanged -= UpdateButton;
         }
 
         public override void KeyPressed(KeyPayload payload) {
@@ -41,7 +43,9 @@ namespace DiscordUnfolded {
         public override void ReceivedSettings(ReceivedSettingsPayload payload) { }
 
 
-        public void UpdateButton(object sender, DiscordGuildInfo discordGuildInfo) {
+        public void UpdateButton(DiscordGuild discordGuild) {
+            DiscordGuildInfo discordGuildInfo = discordGuild?.GetInfo();
+
             // if the info has not changed, then we do not need to update
             if(currentGuildInfo == null && discordGuildInfo == null)
                 return;
