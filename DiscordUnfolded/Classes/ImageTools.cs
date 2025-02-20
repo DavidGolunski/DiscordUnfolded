@@ -21,7 +21,6 @@ namespace DiscordUnfolded.Classes {
             if(useCachedImages && cachedPictures.ContainsKey(imageUrl)) 
                 return cachedPictures[imageUrl].Clone() as Bitmap;
 
-
             try {
                 using WebClient webClient = new WebClient();
                 using var stream = webClient.OpenRead(imageUrl) ?? throw new Exception("Failed to open image stream.");

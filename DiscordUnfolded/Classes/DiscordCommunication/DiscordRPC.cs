@@ -11,8 +11,9 @@ using DiscordUnfolded.DiscordCommunication;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
 using Discord;
+using System.Security.Policy;
 
-namespace DiscordUnfolded {
+namespace DiscordUnfolded.DiscordCommunication {
     public class DiscordRPC {
 
         private static DiscordRPC instance;
@@ -25,16 +26,22 @@ namespace DiscordUnfolded {
         private const string clientId = "1337102485017595966"; // Replace with your actual Client ID
         private const string clientSecret = "6FWjjmhTxcaNMBwzVCZq_bKuS6KDy-qp";
         private const string redirectUri = "https://127.0.0.1:7393/callback";
+        private readonly String[] scopes = { "identify", "guilds", "rpc" };
 
 
         public bool IsRunning { get => cancellationTokenSource != null; }
         private CancellationTokenSource cancellationTokenSource;
         private readonly IPCMessenger messenger;
 
+        private bool blockEvents = false;
 
         // A place to store all subscriptions that have been made without any additional parameters
         // Param1: EventType
         private readonly List<EventType> subscribedGeneral = new List<EventType>();
+
+        // A place to store all subscriptions that have been made with a guild ID
+        // Param1: EventType, Param2: guildId
+        private readonly List<(EventType, ulong)> subscribedGuilds = new List<(EventType, ulong)>();
 
         // A place to store all subscriptions that have been made with a channel ID
         // Param1: EventType, Param2: channelID
@@ -54,11 +61,11 @@ namespace DiscordUnfolded {
         private DiscordRPC() {
             cancellationTokenSource = null;
             messenger = new IPCMessenger(true);
-            messenger.OnEventReceived += OnEventReceived;
         }
 
         public void Start() {
             if(IsRunning) return;
+            blockEvents = true;
             cancellationTokenSource = new CancellationTokenSource();
             CancellationToken token = cancellationTokenSource.Token;
 
@@ -75,23 +82,24 @@ namespace DiscordUnfolded {
             // subscribe to general events
             messenger.SendGeneralSubscribeEvent(EventType.GUILD_CREATE);
             subscribedGeneral.Add(EventType.GUILD_CREATE);
-            messenger.SendGeneralSubscribeEvent(EventType.GUILD_STATUS);
-            subscribedGeneral.Add(EventType.GUILD_STATUS);
             messenger.SendGeneralSubscribeEvent(EventType.CHANNEL_CREATE);
             subscribedGeneral.Add(EventType.CHANNEL_CREATE);
 
-
-            GetDiscordGuild(1336080882758320311); // Bot Test Server
 
 
             Logger.Instance.LogMessage(TracingLevel.INFO, "DiscordRPC Started");
             if(token.IsCancellationRequested)
                 Stop();
+
+            Task.Run(() => ReadEventQueue(token), token);
+
+            blockEvents = false;
         }
 
         public void Stop() {
             if(!IsRunning) return;
-            
+
+            blockEvents = false;
             Disconnect();
 
             Logger.Instance.LogMessage(TracingLevel.INFO, "DiscordRPC Stopped");
@@ -119,10 +127,10 @@ namespace DiscordUnfolded {
             if(!string.IsNullOrEmpty(previousAccessToken)) {
                 string newAccessToken = null;
                 try {
-                    newAccessToken = DiscordOAuth2.RefreshToken(previousAccessToken, clientId, clientSecret, token);
+                    newAccessToken = DiscordOAuth2.RefreshToken(previousAccessToken, clientId, clientSecret, scopes, token);
                 }
                 catch(Exception ex) {
-                    Logger.Instance.LogMessage(TracingLevel.ERROR, "Error while refreshing token: " + ex.StackTrace);
+                    Logger.Instance.LogMessage(TracingLevel.ERROR, "Error while refreshing token: " + ex.Message + "\n" + ex.StackTrace);
                 }
 
                 if(!string.IsNullOrEmpty(newAccessToken)) {
@@ -134,7 +142,7 @@ namespace DiscordUnfolded {
 
 
             // If we get here, then authenticating with a previously stored token was unsuccessfull and we need to reauthenticate again
-            IPCMessage authorizeMessage = messenger.SendAuthorizeRequest(clientId);
+            IPCMessage authorizeMessage = messenger.SendAuthorizeRequest(clientId, scopes);
 
             if(authorizeMessage.Error != null || token.IsCancellationRequested) return;
 
@@ -172,6 +180,11 @@ namespace DiscordUnfolded {
             }
             subscribedGeneral.Clear();
 
+            foreach((EventType evt, ulong guildId) in subscribedGuilds) {
+                messenger.SendGuildUnsubscribeRequest(evt, guildId);
+            }
+            subscribedGuilds.Clear();
+
             foreach((EventType evt, ulong channelId) in subscribedChannels) {
                 messenger.SendChannelUnsubscribeRequest(evt, channelId);
             }
@@ -184,15 +197,60 @@ namespace DiscordUnfolded {
             messenger.Disconnect();
         }
 
+        private void ReadEventQueue(CancellationToken token) {
+            while(messenger.Connected && IsRunning && !token.IsCancellationRequested) {
+                if(messenger.EventQueue.Count == 0) {
+                    Task.Delay(10);
+                    continue;
+                }
+
+                (EventType eventType, JObject eventData) = messenger.EventQueue.Dequeue();
+                OnEventReceived(eventType, eventData);
+            }
+        }
+
         private void OnEventReceived(EventType eventType, JObject eventData) {
+            if(blockEvents)
+                return;
 
             switch(eventType) {
                 case EventType.GUILD_CREATE:
+                    ulong newGuildId = UInt64.Parse(eventData["id"]?.ToString());
+                    string newGuildName = eventData["name"]?.ToString();
+                    string newGuildIconUrl = eventData["icon_url"]?.ToString();
+
+                    messenger.SendGuildSubscribeEvent(EventType.GUILD_STATUS, newGuildId);
+                    subscribedGuilds.Add((EventType.GUILD_STATUS, newGuildId));
+
+                    AvailableGuilds.Add(new DiscordGuildInfo(newGuildId, newGuildName, newGuildIconUrl));
+                    OnAvailableGuildsChanged?.Invoke(AvailableGuilds);
+                    break;
                 case EventType.GUILD_STATUS:
-                    UpdateAvailableGuilds();
+                    ulong updatedGuildId = UInt64.Parse(eventData["id"]?.ToString());
+                    string updatedGuildName = eventData["name"]?.ToString();
+                    string updatedGuildIconUrl = eventData["icon_url"]?.ToString();
+
+                    DiscordGuildInfo updatedDiscordGuildInfo = new DiscordGuildInfo(updatedGuildId, updatedGuildName, updatedGuildIconUrl);
+                    foreach(var availableGuild in AvailableGuilds) {
+                        // find the updated guild inside the available guilds
+                        if(availableGuild.GuildId == updatedDiscordGuildInfo.GuildId) {
+
+                            // if the info has changed, then update the info
+                            if(!availableGuild.Equals(updatedDiscordGuildInfo)) {
+                                availableGuild.GuildName = updatedDiscordGuildInfo.GuildName;
+                                availableGuild.IconUrl = updatedDiscordGuildInfo.IconUrl;
+                                OnAvailableGuildsChanged?.Invoke(AvailableGuilds);
+                            }
+
+                            break;
+                        }
+                    }
+
+                    Logger.Instance.LogMessage(TracingLevel.DEBUG, "Guild Status event called");
                     break;
                 case EventType.CHANNEL_CREATE:
-                    AddChannelToGuild(this.SelectedGuild, eventData);
+                    // ToDo: Fix this. The Channel Create message does not contain the guild_id
+                    // AddChannelToGuild(this.SelectedGuild, eventData);
                     break;
                 case EventType.VOICE_STATE_CREATE:
                     if(this.SelectedGuild == null)
@@ -275,8 +333,19 @@ namespace DiscordUnfolded {
 
         
         private void UpdateAvailableGuilds() {
+            blockEvents = true;
             AvailableGuilds.Clear();
-            if(!IsRunning || !messenger.Connected) return;
+
+            Logger.Instance.LogMessage(TracingLevel.DEBUG, "Updating Available Guilds");
+            foreach((EventType evt, ulong guildId) in subscribedGuilds) {
+                messenger.SendGuildUnsubscribeRequest(evt, guildId);
+            }
+            subscribedGuilds.Clear();
+
+            if(!IsRunning || !messenger.Connected) {
+                blockEvents = false;
+                return;
+            }
 
 
             List<DiscordGuildInfo> guilds = new List<DiscordGuildInfo>();
@@ -285,19 +354,36 @@ namespace DiscordUnfolded {
 
             if(message.Error != null) {
                 Logger.Instance.LogMessage(TracingLevel.ERROR, message.Error.ToString());
+                blockEvents = false;
                 return;
             }
 
             var guildData = message.Data["guilds"] as JArray;
             foreach(var guildJToken in guildData) {
-                string id = guildJToken["id"]?.ToString();
+                ulong id = UInt64.Parse(guildJToken["id"]?.ToString());
                 string name = guildJToken["name"]?.ToString();
-                string iconURL = guildJToken["icon_url"]?.ToString();
+                string iconUrl = guildJToken["icon_url"]?.ToString();
 
-                DiscordGuildInfo discordGuildInfo = new DiscordGuildInfo(UInt64.Parse(id), name, iconURL);
+                // remove any parameters after the "?" and change the file type to .png
+                if(!string.IsNullOrEmpty(iconUrl)) {
+                    int questionMarkIndex = iconUrl.IndexOf('?');
+                    if(questionMarkIndex != -1) {
+                        iconUrl = iconUrl.Substring(0, questionMarkIndex);
+                    }
+
+                    // Replace ".webp" with ".png" if it ends with ".webp"
+                    if(iconUrl.EndsWith(".webp", StringComparison.OrdinalIgnoreCase)) {
+                        iconUrl = iconUrl.Substring(0, iconUrl.Length - 5) + ".png";
+                    }
+                }
+
+                DiscordGuildInfo discordGuildInfo = new DiscordGuildInfo(id, name, iconUrl);
 
                 guilds.Add(discordGuildInfo);
                 Logger.Instance.LogMessage(TracingLevel.DEBUG, "DiscordRPC found Guild: " + discordGuildInfo.ToString());
+
+                messenger.SendGuildSubscribeEvent(EventType.GUILD_STATUS, id);
+                subscribedGuilds.Add((EventType.GUILD_STATUS, id));
             }
 
             AvailableGuilds.Clear();
@@ -305,6 +391,7 @@ namespace DiscordUnfolded {
 
             // send update events
             OnAvailableGuildsChanged?.Invoke(AvailableGuilds);
+            blockEvents = false;
         }
 
         public DiscordGuild SelectGuild(ulong guildId) {
@@ -343,6 +430,9 @@ namespace DiscordUnfolded {
                 }
             }
 
+            // if the selected guild is null, it might be that the client has left the server
+            if(this.SelectedGuild == null)
+                UpdateAvailableGuilds();
 
 
             return this.SelectedGuild;
@@ -353,6 +443,8 @@ namespace DiscordUnfolded {
         private DiscordGuild GetDiscordGuild(ulong guildId) {
             if(!IsRunning || !messenger.Connected) return null;
 
+            blockEvents = true;
+
             DiscordGuildInfo discordGuildInfo = null;
             foreach(DiscordGuildInfo info in AvailableGuilds) {
                 if(info.GuildId == guildId) {
@@ -362,6 +454,7 @@ namespace DiscordUnfolded {
             }
             if(discordGuildInfo == null) {
                 Logger.Instance.LogMessage(TracingLevel.ERROR, "Error while trying to Find Guild in ID " + guildId + " in AvailableGuilds");
+                blockEvents = false;
                 return null;
             }
 
@@ -371,6 +464,7 @@ namespace DiscordUnfolded {
             IPCMessage channelsMessage = messenger.SendGetChannelsRequest(guildId);
             if(channelsMessage.Error != null) {
                 Logger.Instance.LogMessage(TracingLevel.ERROR, "Error while retrieving channels of Guild " + guildId + ": " +  channelsMessage.Error.ToString());
+                blockEvents = false;
                 return null;
             }
 
@@ -387,6 +481,7 @@ namespace DiscordUnfolded {
                 IPCMessage channelMessage = messenger.SendGetChannelRequest(channelId);
                 if(channelMessage.Error != null) {
                     Logger.Instance.LogMessage(TracingLevel.ERROR, "Error while retrieving text channel " + channelId + ": " + channelMessage.Error.ToString());
+                    blockEvents = false;
                     return null;
                 }
 
@@ -395,7 +490,7 @@ namespace DiscordUnfolded {
             }
 
             Logger.Instance.LogMessage(TracingLevel.INFO, guild.ToString());
-
+            blockEvents = false;
             return guild;
         }
 

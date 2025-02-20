@@ -3,6 +3,7 @@ using BarRaider.SdTools.Events;
 using BarRaider.SdTools.Wrappers;
 using Newtonsoft.Json.Linq;
 using System.Threading.Tasks;
+using DiscordUnfolded.DiscordCommunication;
 
 namespace DiscordUnfolded {
     [PluginActionId("com.davidgolunski.discordunfolded.globalsettingsaction")]

@@ -1,5 +1,6 @@
 ﻿using BarRaider.SdTools;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,7 +10,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace DiscordUnfolded {
+namespace DiscordUnfolded.DiscordCommunication {
     public static class DiscordOAuth2 {
         private static readonly HttpClient httpClient = new HttpClient();
 
@@ -45,10 +46,36 @@ namespace DiscordUnfolded {
         }
 
         // refresh a non-expired token
-        public static string RefreshToken(string token, string clientID, string clientSecret, CancellationToken cancellationToken) {
+        public static string RefreshToken(string token, string clientID, string clientSecret, String[] scopes, CancellationToken cancellationToken) {
             if(token == null || clientID == null || clientSecret == null)
                 return null;
 
+            var values = new Dictionary<string, string>
+            {
+                { "client_id", clientID },
+                { "client_secret", clientSecret },
+                { "refresh_token", token },
+                { "scope", string.Join(" ", scopes) },
+                { "grant_type", "refresh_token" }
+            };
+
+            var content = new FormUrlEncodedContent(values);
+            var requestUrl = "https://discord.com/api/v10/oauth2/token";
+
+            var response = httpClient.PostAsync(requestUrl, content).GetAwaiter().GetResult();
+
+            if(!response.IsSuccessStatusCode) {
+                throw new Exception($"Error exchanging code: {response.StatusCode}" + " -- " + response.RequestMessage.ToString());
+            }
+            Console.WriteLine("Successfully refreshed token");
+            string responseBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+            JObject responseJObject = JObject.Parse(responseBody);
+
+            Logger.Instance.LogMessage(TracingLevel.INFO, responseBody.ToString());
+
+
+            return responseJObject["token"]?.ToString();
+            /*
             var values = new Dictionary<string, string>{
                 { "grant_type", "refresh_token" },
                 { "refresh_token", token }
@@ -73,6 +100,7 @@ namespace DiscordUnfolded {
             var responseData = JsonConvert.DeserializeObject<Dictionary<string, string>>(responseBody);
 
             return responseData["access_token"];
+            */
         }
 
 

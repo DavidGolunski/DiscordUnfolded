@@ -15,6 +15,7 @@ using System.Drawing.Imaging;
 using System.Windows.Forms;
 using WindowsInput;
 using WindowsInput.Native;
+using DiscordUnfolded.DiscordCommunication;
 
 namespace DiscordUnfolded {
     [PluginActionId("com.davidgolunski.discordunfolded.channelgridaction")]

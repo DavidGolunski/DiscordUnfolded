@@ -28,9 +28,7 @@ namespace DiscordUnfolded.DiscordCommunication {
 
         private readonly ConcurrentDictionary<string, TaskCompletionSource<JObject>> pendingRequests = new ConcurrentDictionary<string, TaskCompletionSource<JObject>>();
 
-
-        // called when IPC received an event. The first parameter will be the event type and the second parameter will be the "data" from the event as a JObject
-        public event Action<EventType, JObject> OnEventReceived;
+        public readonly Queue<(EventType, JObject)> EventQueue = new Queue<(EventType, JObject)>();
 
 
         public IPCMessenger(bool enableExtensiveLogging = false) { 
@@ -119,6 +117,7 @@ namespace DiscordUnfolded.DiscordCommunication {
                     else {
                         HandleMessage(messageObject);
                     }
+                    Task.Delay(5);
                     return;
                 }
                 catch(Exception ex) {
@@ -141,10 +140,15 @@ namespace DiscordUnfolded.DiscordCommunication {
             int op = BitConverter.ToInt32(metadataBuffer, 0);
             int jsonLength = BitConverter.ToInt32(metadataBuffer, 4);
 
-            int currentIndex = 8;
+            // delay the reading. In some cases we might read the jsonlength beofre the entire json has been loaded
+            Task.Delay(1);
+
+            int currentIndex = 0;
             StringBuilder stringBuilder = new StringBuilder();
             do {
-                int jsonBytesRead = pipe.ReadAsync(standardBuffer, 0, standardBuffer.Length, cancellationToken).GetAwaiter().GetResult();
+                int bytesToRead = jsonLength - currentIndex < standardBuffer.Length ? jsonLength - currentIndex : standardBuffer.Length;
+
+                int jsonBytesRead = pipe.ReadAsync(standardBuffer, 0, bytesToRead, cancellationToken).GetAwaiter().GetResult();
 
                 stringBuilder.Append(Encoding.UTF8.GetString(standardBuffer, 0, jsonBytesRead));
                 currentIndex += jsonBytesRead;
@@ -163,7 +167,7 @@ namespace DiscordUnfolded.DiscordCommunication {
 
             EventType eventType = (EventType) Enum.Parse(typeof(EventType), eventTypeString);
             JObject data = messageObject["data"] as JObject;
-            OnEventReceived?.Invoke(eventType, data);
+            EventQueue.Enqueue((eventType, data));
         }
 
 
@@ -181,7 +185,7 @@ namespace DiscordUnfolded.DiscordCommunication {
             return SendMessageAndGetIPCMessageResponse(MessageType.DISPATCH, string.Empty, request, 0);
         }
 
-        public IPCMessage SendAuthorizeRequest(string clientId) {
+        public IPCMessage SendAuthorizeRequest(string clientId, String[] requiredScopes) {
             if(!Connected || cancellationToken.IsCancellationRequested) {
                 DebugLog("SendAuthorizeRequest failed because the pipe was not connected or a cancellation was requested");
                 return IPCMessage.Empty;
@@ -192,7 +196,7 @@ namespace DiscordUnfolded.DiscordCommunication {
                 cmd = MessageType.AUTHORIZE.ToString(),
                 args = new {
                     client_id = clientId,
-                    scopes = new[] { "identify", "guilds", "rpc" }
+                    scopes = requiredScopes
                 }
             };
 
@@ -370,6 +374,30 @@ namespace DiscordUnfolded.DiscordCommunication {
             return SendMessageAndGetIPCMessageResponse(MessageType.SUBSCRIBE, generatedNonce, request);
         }
 
+        // sends a subscribe event for options that only need a guild_id as a parameter
+        public IPCMessage SendGuildSubscribeEvent(EventType eventType, ulong guildId) {
+            if(!Connected || cancellationToken.IsCancellationRequested) {
+                DebugLog("SendGuildSubscribeEvent failed because the pipe was not connected or a cancellation was requested");
+                return IPCMessage.Empty;
+            }
+
+            if(eventType != EventType.GUILD_STATUS) {
+                DebugLog("SendGuildSubscribeEvent failed because the Event " + eventType + " is not supported in a channel request");
+                return IPCMessage.Empty;
+            }
+
+            var generatedNonce = Guid.NewGuid().ToString();
+            var request = new {
+                nonce = generatedNonce,
+                cmd = MessageType.SUBSCRIBE.ToString(),
+                args = new {
+                    guild_id = guildId.ToString()
+                },
+                evt = eventType.ToString()
+            };
+
+            return SendMessageAndGetIPCMessageResponse(MessageType.SUBSCRIBE, generatedNonce, request);
+        }
 
         // sends a subscribe event for options that only need a channel_id as a parameter
         public IPCMessage SendChannelSubscribeEvent(EventType eventType, ulong channelID) {
@@ -412,6 +440,30 @@ namespace DiscordUnfolded.DiscordCommunication {
                 nonce = generatedNonce,
                 cmd = MessageType.UNSUBSCRIBE.ToString(),
                 args = new { },
+                evt = eventType.ToString()
+            };
+
+            return SendMessageAndGetIPCMessageResponse(MessageType.UNSUBSCRIBE, generatedNonce, request);
+        }
+
+        public IPCMessage SendGuildUnsubscribeRequest(EventType eventType, ulong guildId) {
+            if(!Connected || cancellationToken.IsCancellationRequested) {
+                DebugLog("SendGuildUnsubscribeRequest failed because the pipe was not connected or a cancellation was requested");
+                return IPCMessage.Empty;
+            }
+
+            if(eventType != EventType.GUILD_STATUS) {
+                DebugLog("SendGuildUnsubscribeRequest failed because the Event " + eventType + " is not supported in a channel request");
+                return IPCMessage.Empty;
+            }
+
+            var generatedNonce = Guid.NewGuid().ToString();
+            var request = new {
+                nonce = generatedNonce,
+                cmd = MessageType.UNSUBSCRIBE.ToString(),
+                args = new {
+                    guild_id = guildId.ToString()
+                },
                 evt = eventType.ToString()
             };
 
