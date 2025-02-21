@@ -250,10 +250,31 @@ namespace DiscordUnfolded.DiscordCommunication {
                     }
                     break;
                 case EventType.CHANNEL_CREATE:
-                    // ToDo: Fix this. The Channel Create message does not contain the guild_id
-                    // AddChannelToGuild(this.SelectedGuild, eventData);
-                    
+                    if(this.SelectedGuild == null)
+                        break;
 
+                    IPCMessage channelsMessage = messenger.SendGetChannelsRequest(this.SelectedGuild.GuildId);
+                    if(channelsMessage.Error != null) {
+                        Logger.Instance.LogMessage(TracingLevel.WARN, "DiscordRPC - Error after trying to get channels from " + this.SelectedGuild.GuildId + ". This happened after a \"CHANNEL_CREATE\" event");
+                        break;
+                    }
+
+                    ulong newChannelID = UInt64.Parse(eventData["id"].ToString());
+                    var channelData = channelsMessage.Data["channels"] as JArray;
+                    foreach(var channelJToken in channelData) {
+                        ulong currentChannelId = UInt64.Parse(channelJToken["id"].ToString());
+                        if(newChannelID == currentChannelId) {
+
+                            IPCMessage channelMessage = messenger.SendGetChannelRequest(newChannelID);
+                            if(channelMessage.Error != null) {
+                                Logger.Instance.LogMessage(TracingLevel.WARN, "DiscordRPC - Error after trying to get channel \"" + newChannelID + "\" from " + this.SelectedGuild.GuildId + ". This happened after a \"CHANNEL_CREATE\" event");
+                                break;
+                            }
+                            Logger.Instance.LogMessage(TracingLevel.DEBUG, "DiscordRPC Added Channel: " + AddChannelToGuild(this.SelectedGuild, channelMessage.Data));
+                            Logger.Instance.LogMessage(TracingLevel.DEBUG, "DiscordRPC New Guild Structure: " + this.SelectedGuild);
+                            break;
+                        }
+                    }
                     break;
                 case EventType.VOICE_STATE_CREATE:
                     if(this.SelectedGuild == null)
@@ -264,7 +285,6 @@ namespace DiscordUnfolded.DiscordCommunication {
 
                     DiscordVoiceChannel voiceChannel = this.SelectedGuild.GetVoiceChannel(newUser.GetVoiceChannel().ChannelId);
                     voiceChannel.AddUser(new DiscordUser(voiceChannel, newUser.UserId, newUser.UserName, newUser.VoiceState, newUser.IconUrl));
-                    Logger.Instance.LogMessage(TracingLevel.DEBUG, "DiscordRPC - Create User: " + newUserId);
                     guild.Dispose();
                     break;
                 case EventType.VOICE_STATE_DELETE:
@@ -273,7 +293,6 @@ namespace DiscordUnfolded.DiscordCommunication {
                     ulong userDeleteId = UInt64.Parse(eventData["user"]["id"].ToString());
                     DiscordUser removedUser = this.SelectedGuild.GetUser(userDeleteId);
                     removedUser.GetVoiceChannel().RemoveUser(userDeleteId);
-                    Logger.Instance.LogMessage(TracingLevel.DEBUG, "DiscordRPC - Removed User: " + userDeleteId);
                     break;
 
                 case EventType.VOICE_STATE_UPDATE:
@@ -281,9 +300,7 @@ namespace DiscordUnfolded.DiscordCommunication {
                         break;
                     ulong userUpdateId = UInt64.Parse(eventData["user"]["id"].ToString());
                     VoiceStates newVoiceState = GetVoiceState(eventData["voice_state"]);
-                    Logger.Instance.LogMessage(TracingLevel.DEBUG, newVoiceState.ToString() + " Old Voice State: " + this.SelectedGuild.GetUser(userUpdateId).VoiceState.ToString());
                     this.SelectedGuild.GetUser(userUpdateId).VoiceState = newVoiceState;
-                    Logger.Instance.LogMessage(TracingLevel.DEBUG, "DiscordRPC - Updated User: " + userUpdateId);
                     break;
                 case EventType.SPEAKING_START:
                     if(this.SelectedGuild == null)
@@ -313,27 +330,40 @@ namespace DiscordUnfolded.DiscordCommunication {
             if(!IsRunning || !messenger.Connected || (channelType != ChannelTypes.VOICE && channelType != ChannelTypes.TEXT))
                 return;
 
-            IPCMessage message = null;
+            IPCMessage leaveMessage = null;
+            IPCMessage joinMessage = null;
             if(channelType == ChannelTypes.VOICE) {
 
                 // if the user is already inside of a Voice Channel, disconnect from the channel first
                 IPCMessage currentChannel = messenger.SendGetSelectedVoiceChannelRequest();
                 string currentChannelID = currentChannel.Data?["id"]?.ToString();
                 if(currentChannelID != null) {
-                    message = messenger.SendSelectVoiceChannelRequest(0);
+                    leaveMessage = messenger.SendSelectVoiceChannelRequest(0);
                 }
 
                 // join the channel only, if you would not rejoin the same channel again
                 if(channelID.ToString() != currentChannelID) {
-                    message = messenger.SendSelectVoiceChannelRequest(channelID);
+                    joinMessage = messenger.SendSelectVoiceChannelRequest(channelID);
                 }
             }
             else {
-                message = messenger.SendSelectTextChannelRequest(channelID);
+                joinMessage = messenger.SendSelectTextChannelRequest(channelID);
             }
 
-            if(message != null && message.Error != null) {
-                Logger.Instance.LogMessage(TracingLevel.ERROR, message.ToString());
+
+            if(leaveMessage != null && leaveMessage.Error != null) {
+                Logger.Instance.LogMessage(TracingLevel.ERROR, "LeaveMessage: " + leaveMessage.ToString());
+            }
+
+            // this means that the channel was not found, the error code 4005 will be returned and 
+            if(joinMessage?.Error?["code"]?.ToString() == "4005") {
+                if(this.SelectedGuild != null) {
+                    this.SelectedGuild = GetDiscordGuild(this.SelectedGuild.GuildId);
+                }
+                return;
+            }
+            else if(leaveMessage?.Error != null) {
+                Logger.Instance.LogMessage(TracingLevel.ERROR, "JoinMessage: " + joinMessage.ToString());
             }
         }
 
@@ -537,7 +567,7 @@ namespace DiscordUnfolded.DiscordCommunication {
                     string avatar = userJToken["user"]["avatar"]?.ToString();
                     string iconUrl = null;
 
-                    if(string.IsNullOrEmpty(avatar)) {
+                    if(!string.IsNullOrEmpty(avatar)) {
                         iconUrl = $"https://cdn.discordapp.com/avatars/{userId}/{avatar}.png";
                     }
 
