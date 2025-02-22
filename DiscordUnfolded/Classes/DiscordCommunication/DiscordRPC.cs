@@ -54,7 +54,6 @@ namespace DiscordUnfolded.DiscordCommunication {
         public readonly List<DiscordGuildInfo> AvailableGuilds = new List<DiscordGuildInfo>();
         public event Action<List<DiscordGuildInfo>> OnAvailableGuildsChanged;
 
-
         public DiscordGuild SelectedGuild { get; private set; } = null;
         public event Action<DiscordGuild> OnSelectedGuildChanged;
 
@@ -279,20 +278,41 @@ namespace DiscordUnfolded.DiscordCommunication {
                 case EventType.VOICE_STATE_CREATE:
                     if(this.SelectedGuild == null)
                         break;
+                    SelectGuild(this.SelectedGuild.GuildId);
+                    break;
+
                     DiscordGuild guild = GetDiscordGuild(this.SelectedGuild.GuildId);
                     ulong newUserId = UInt64.Parse(eventData["user"]["id"].ToString());
                     DiscordUser newUser = guild.GetUser(newUserId);
 
+                    
+
+                    if(newUser == null) {
+                        Logger.Instance.LogMessage(TracingLevel.WARN, "New User with ID " + newUserId + " was null");
+                        guild.Dispose();
+                        break;
+                    }
+
+                    // make sure that the user is not added twice to the same guild. This could happen if voice state events are out of order
+                    this.SelectedGuild.GetUser(newUserId)?.GetVoiceChannel()?.RemoveUser(newUserId);
+
                     DiscordVoiceChannel voiceChannel = this.SelectedGuild.GetVoiceChannel(newUser.GetVoiceChannel().ChannelId);
                     voiceChannel.AddUser(new DiscordUser(voiceChannel, newUser.UserId, newUser.UserName, newUser.VoiceState, newUser.IconUrl));
                     guild.Dispose();
+                    //Logger.Instance.LogMessage(TracingLevel.DEBUG, "DiscordRPC - VOICE_STATE_CREATE executed. Voice Channel: " + voiceChannel);
+                    Logger.Instance.LogMessage(TracingLevel.DEBUG, "DiscordRPC - VOICE_STATE_CREATE currentGuild. " + this.SelectedGuild);
                     break;
                 case EventType.VOICE_STATE_DELETE:
                     if(this.SelectedGuild == null)
                         break;
+                    SelectGuild(this.SelectedGuild.GuildId);
+                    break;
+
                     ulong userDeleteId = UInt64.Parse(eventData["user"]["id"].ToString());
                     DiscordUser removedUser = this.SelectedGuild.GetUser(userDeleteId);
-                    removedUser.GetVoiceChannel().RemoveUser(userDeleteId);
+                    removedUser?.GetVoiceChannel().RemoveUser(userDeleteId);
+                    //Logger.Instance.LogMessage(TracingLevel.DEBUG, "DiscordRPC - VOICE_STATE_DELETE executed. " + userDeleteId);
+                    Logger.Instance.LogMessage(TracingLevel.DEBUG, "DiscordRPC - VOICE_STATE_DELETE currentGuild. " + this.SelectedGuild);
                     break;
 
                 case EventType.VOICE_STATE_UPDATE:
@@ -300,19 +320,27 @@ namespace DiscordUnfolded.DiscordCommunication {
                         break;
                     ulong userUpdateId = UInt64.Parse(eventData["user"]["id"].ToString());
                     VoiceStates newVoiceState = GetVoiceState(eventData["voice_state"]);
-                    this.SelectedGuild.GetUser(userUpdateId).VoiceState = newVoiceState;
+                    DiscordUser voice_upate_user = this.SelectedGuild.GetUser(userUpdateId);
+                    if(voice_upate_user != null)
+                        voice_upate_user.VoiceState = newVoiceState;
                     break;
                 case EventType.SPEAKING_START:
                     if(this.SelectedGuild == null)
                         break;
                     ulong userSpeakingStartId = UInt64.Parse(eventData["user_id"].ToString());
-                    this.SelectedGuild.GetUser(userSpeakingStartId).VoiceState = VoiceStates.SPEAKING;
+                    DiscordUser speakingStartUser = this.SelectedGuild.GetUser(userSpeakingStartId);
+                    if(speakingStartUser != null)
+                        speakingStartUser.IsSpeaking = true;
+
                     break;
                 case EventType.SPEAKING_STOP:
                     if(this.SelectedGuild == null)
                         break;
                     ulong userSpeakingStopId = UInt64.Parse(eventData["user_id"].ToString());
-                    this.SelectedGuild.GetUser(userSpeakingStopId).VoiceState = VoiceStates.UNMUTED;
+                    DiscordUser speakingStopUser = this.SelectedGuild.GetUser(userSpeakingStopId);
+                    if(speakingStopUser != null)
+                        speakingStopUser.IsSpeaking = false;
+
                     break;
 
                 default:
@@ -516,7 +544,7 @@ namespace DiscordUnfolded.DiscordCommunication {
 
             }
 
-            Logger.Instance.LogMessage(TracingLevel.INFO, guild.ToString());
+            //Logger.Instance.LogMessage(TracingLevel.INFO, guild.ToString());
             blockEvents = false;
             return guild;
         }

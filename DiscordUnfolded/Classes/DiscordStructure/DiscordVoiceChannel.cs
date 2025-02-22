@@ -64,20 +64,22 @@ namespace DiscordUnfolded.DiscordStructure {
             return guild;
         }
 
-        public void AddUser(DiscordUser user) {
+        public bool AddUser(DiscordUser user) {
             if(discordUsers.ContainsKey(user.UserId))
-                return;
+                return false;
 
             discordUsers.Add(user.UserId, user);
             guild.OnUserChanged?.Invoke(this, (true, user.UserId));
+            return true;
         }
 
-        public void RemoveUser(ulong userId) {
+        public bool RemoveUser(ulong userId) {
             if(!discordUsers.ContainsKey(userId))
-                return;
+                return false;
 
             discordUsers.Remove(userId);
             guild.OnUserChanged?.Invoke(this, (false, userId));
+            return true;
         }
 
         public DiscordUser GetUser(ulong userId) {

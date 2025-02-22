@@ -123,20 +123,22 @@ namespace DiscordUnfolded.DiscordStructure {
         /*
          * Text Channels
          */
-        public void AddTextChannel(DiscordTextChannel textChannel) {
+        public bool AddTextChannel(DiscordTextChannel textChannel) {
             if(textChannel == null || textChannels.ContainsKey(textChannel.ChannelId))
-                return;
+                return false;
 
             textChannels[textChannel.ChannelId] = textChannel;
             OnTextChannelChanged?.Invoke(this, (true, textChannel.ChannelId));
+            return true;
         }
 
-        public void RemoveTextChannel(ulong textChannelId) {
+        public bool RemoveTextChannel(ulong textChannelId) {
             if(!textChannels.ContainsKey(textChannelId))
-                return;
+                return false;
 
             textChannels.Remove(textChannelId);
             OnTextChannelChanged?.Invoke(this, (false, textChannelId));
+            return true;
         }
 
         public DiscordTextChannel GetTextChannel(ulong textChannelId) {
@@ -152,20 +154,22 @@ namespace DiscordUnfolded.DiscordStructure {
         /*
          * Voice Channels
          */
-        public void AddVoiceChannel(DiscordVoiceChannel voiceChannel) {
+        public bool AddVoiceChannel(DiscordVoiceChannel voiceChannel) {
             if(voiceChannel == null || voiceChannels.ContainsKey(voiceChannel.ChannelId))
-                return;
+                return false;
 
             voiceChannels[voiceChannel.ChannelId] = voiceChannel;
             OnVoiceChannelChanged?.Invoke(this, (true, voiceChannel.ChannelId));
+            return true;
         }
 
-        public void RemoveVoiceChannel(ulong voiceChannel) {
+        public bool RemoveVoiceChannel(ulong voiceChannel) {
             if(!voiceChannels.ContainsKey(voiceChannel))
-                return;
+                return false;
 
             voiceChannels.Remove(voiceChannel);
             OnVoiceChannelChanged?.Invoke(this, (false, voiceChannel));
+            return true;
         }
 
         public DiscordVoiceChannel GetVoiceChannel(ulong voiceChannelId) {

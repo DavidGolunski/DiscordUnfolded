@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -51,6 +52,20 @@ namespace DiscordUnfolded.DiscordStructure {
             }
         }
 
+        private bool isSpeaking;
+        public bool IsSpeaking {
+            get => isSpeaking;
+            set {
+                if(isSpeaking == value)
+                    return;
+
+                isSpeaking = value;
+
+                // invoke guild event from this level
+                voiceChannel.GetGuild().OnUserInfoChanged?.Invoke(this, GetInfo());
+            }
+        }
+
 
         public DiscordUser(DiscordVoiceChannel voiceChannel, ulong userId, string userName, VoiceStates voiceState, string iconUrl) {
             Debug.Assert(voiceChannel != null);
@@ -60,6 +75,7 @@ namespace DiscordUnfolded.DiscordStructure {
             this.userName = userName;
             this.voiceState = voiceState;
             this.iconUrl = iconUrl;
+            this.isSpeaking = false;
         }
 
         public void Dispose() {
@@ -67,7 +83,7 @@ namespace DiscordUnfolded.DiscordStructure {
         }
 
         public DiscordUserInfo GetInfo() {
-            return new DiscordUserInfo(UserId, UserName, VoiceState, IconUrl);
+            return new DiscordUserInfo(UserId, UserName, VoiceState, IconUrl, IsSpeaking);
         }
 
         public DiscordVoiceChannel GetVoiceChannel() {

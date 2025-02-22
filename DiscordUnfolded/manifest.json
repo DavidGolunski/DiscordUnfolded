@@ -1,21 +1,6 @@
 {
   "Actions": [
     {
-      "Icon": "Images/icon",
-      "Name": "Start Receiving",
-      "States": [
-        {
-          "Image": "Images/pluginAction",
-          "TitleAlignment": "middle",
-          "FontSize": "12"
-        }
-      ],
-      "SupportedInMultiActions": false,
-      "Tooltip": "TODO_ENTER_TOOLTIP",
-      "UUID": "com.davidgolunski.startreceivingaction",
-      "PropertyInspectorPath": "PropertyInspector/PluginActionPI.html"
-    },
-    {
       "Icon": "Actions/GlobalSettingsAction/SettingIcon",
       "Name": "Global Settings",
       "States": [

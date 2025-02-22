@@ -103,19 +103,9 @@ namespace DiscordUnfolded {
 
             // if the button is the current user, mute or unmute the user. Does nothing if the button is not the current user
             UserButtonPressed(channelGridInfo, timeDiff);
-            /*
-            // moves the user between channels, lets the user join a channel or disconnect from a channel
-            VoiceChannelPressed(channelGridInfo);
-            */
 
             if(channelGridInfo?.ChannelInfo?.ChannelId != null) {
-
-                //if(channelGridInfo.UsersInChannel?.Contains(globalSettings.UserID) == true) {
-                //    DiscordRPC.Instance.SelectChannel(channelGridInfo.ChannelInfo.ChannelType, 0);
-               // }
-               // else {
-                    DiscordRPC.Instance.SelectChannel(channelGridInfo.ChannelInfo.ChannelType, channelGridInfo.ChannelInfo.ChannelId);
-               // }
+                DiscordRPC.Instance.SelectChannel(channelGridInfo.ChannelInfo.ChannelType, channelGridInfo.ChannelInfo.ChannelId);
             }
 
 
@@ -135,43 +125,6 @@ namespace DiscordUnfolded {
             else {
                 KeyBindAction.KeyBindActions["MUTE"].Execute();
             } 
-        }
-
-        private void VoiceChannelPressed(ChannelGridInfo channelGridInfo) {
-            // if a voice channel has been pressed
-            if(channelGridInfo?.ChannelInfo?.ChannelType != ChannelTypes.VOICE) 
-                return;
-
-
-            //check if the user is already inside a voice channel
-            ulong channelID = channelGridInfo.ChannelInfo.ChannelId;
-
-            DiscordGuild guild = DiscordRPC.Instance.SelectedGuild;
-            if(guild == null) 
-                return;
-
-            DiscordUser user = DiscordRPC.Instance.SelectedGuild?.GetUser(globalSettings.UserID);
-
-            // for joining the channel via keybind if possible 
-            if(user == null) {
-                if(!KeyBindAction.KeyBindActions.ContainsKey("JOIN_" + channelID))
-                    return;
-
-                KeyBindAction.KeyBindActions["JOIN_" + channelID].Execute();
-                return;
-            }
-                
-            
-            //for kicking user
-            if(user.GetVoiceChannel().ChannelId == channelID) {
-                KeyBindAction.KeyBindActions["DISCONNECT"].Execute();
-            }
-            // for moving user
-            else {
-                DiscordBot.Instance.MoveUser(user.GetVoiceChannel().GetGuild().GuildId, user.UserId, channelID);
-            }
-            
-            
         }
 
         /*
@@ -257,16 +210,16 @@ namespace DiscordUnfolded {
                 bitmap = ImageTools.AddTextToBitmap(bitmap, title, Color.White);
             }
             
-            if(userInfo.VoiceState == VoiceStates.DEAFENED) {
+            if(userInfo.IsSpeaking) {
+                highlightBitmap = ImageTools.GetBitmapFromFilePath("./Images/BigGreenHighlight@2x.png");
+                bitmap = ImageTools.MergeBitmaps(bitmap, highlightBitmap);
+            }
+            else if(userInfo.VoiceState == VoiceStates.DEAFENED) {
                 highlightBitmap = ImageTools.GetBitmapFromFilePath("./Images/BigRedHighlight@2x.png");
                 bitmap = ImageTools.MergeBitmaps(bitmap, highlightBitmap);
             }
             else if(userInfo.VoiceState == VoiceStates.MUTED) {
                 highlightBitmap = ImageTools.GetBitmapFromFilePath("./Images/BigYellowHighlight@2x.png");
-                bitmap = ImageTools.MergeBitmaps(bitmap, highlightBitmap);
-            }
-            else if(userInfo.VoiceState == VoiceStates.SPEAKING) {
-                highlightBitmap = ImageTools.GetBitmapFromFilePath("./Images/BigGreenHighlight@2x.png");
                 bitmap = ImageTools.MergeBitmaps(bitmap, highlightBitmap);
             }
 

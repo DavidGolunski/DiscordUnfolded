@@ -160,6 +160,7 @@ namespace DiscordUnfolded {
         }
 
         private void OnTextChannelInfoChanged(object sender, DiscordChannelInfo discordChannelInfo) {
+            Logger.Instance.LogMessage(TracingLevel.DEBUG, "ChannelGridManager: OnTextChannelInfoChanged");
             UpdateChannelGrid();
         }
         private void OnTextChannelChanged(object sender, (bool wasAdded, ulong voiceChannelID) info) {
@@ -168,9 +169,11 @@ namespace DiscordUnfolded {
         }
 
         private void OnVoiceChannelInfoChanged(object sender, DiscordChannelInfo discordChannelInfo) {
+            Logger.Instance.LogMessage(TracingLevel.DEBUG, "ChannelGridManager: OnVoiceChannelInfoChanged");
             UpdateChannelGrid();
         }
         public void OnVoiceChannelChanged(object sender, (bool wasAdded, ulong voiceChannelID) info) {
+            Logger.Instance.LogMessage(TracingLevel.DEBUG, "ChannelGridManager: OnVoiceChannelChanged");
             UpdateChannelGrid();
         }
 
@@ -253,7 +256,7 @@ namespace DiscordUnfolded {
 
         // sends out an update event to buttons at the specified position
         private void UpdateButton(int xPos, int yPos) {
-            Logger.Instance.LogMessage(TracingLevel.DEBUG, "ChannelGridManager.UpdatingButton: (" + xPos + ", " + yPos + ") " + GetChannelInfoForPosition(xPos, yPos) );
+            //Logger.Instance.LogMessage(TracingLevel.DEBUG, "ChannelGridManager.UpdatingButton: (" + xPos + ", " + yPos + ") " + GetChannelInfoForPosition(xPos, yPos) );
             updateEvents[(xPos, yPos)]?.Invoke(this, GetChannelInfoForPosition(xPos, yPos)); 
         }
 

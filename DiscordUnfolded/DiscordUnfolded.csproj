@@ -154,7 +154,6 @@
     <Compile Include="Actions\ServerGridAction\ServerGridSettings.cs">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Compile>
-    <Compile Include="Actions\StartReceivingAction\StartReceivingAction.cs" />
     <Compile Include="Classes\ChannelGridManager.cs">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Compile>
@@ -179,9 +178,6 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Compile>
     <Compile Include="Classes\DiscordCommunication\DiscordRPC.cs">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Compile>
-    <Compile Include="Classes\DiscordBot.cs">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Compile>
     <Compile Include="Classes\DiscordStructure\DiscordGuildInfo.cs">
