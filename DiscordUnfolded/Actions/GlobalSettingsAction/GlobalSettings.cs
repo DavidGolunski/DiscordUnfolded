@@ -9,27 +9,23 @@ namespace DiscordUnfolded {
 
     public class GlobalSettings {
 
-        [JsonProperty(PropertyName = "userIdString")]
-        public string UserIdString { get; set; }
+        [JsonProperty(PropertyName = "clientId")]
+        public string ClientId { get; set; }
 
-        public ulong UserID {
-           get {
-                try {
-                    ulong userId = Convert.ToUInt64(UserIdString);
-                    return userId;
-                }
-                catch {
-                    return 0;
-                }
-           }
-        }
+        [JsonProperty(PropertyName = "clientSecret")]
+        public string ClientSecret {  get; set; }
 
         [JsonProperty(PropertyName = "maxChannelWidth")]
         public int MaxChannelWidth { get; set; } // should be between 3 and 8
 
         public GlobalSettings() {
-            UserIdString = "000000000000000000";
+            ClientId = string.Empty;
+            ClientSecret = string.Empty;
             MaxChannelWidth = 3;
+        }
+
+        public override string ToString() {
+            return "ClientID: " + ClientId + " ClientSecret: " + ClientSecret + " MaxChannelWidth: " + MaxChannelWidth;
         }
     }
 }

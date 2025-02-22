@@ -26,7 +26,6 @@ namespace DiscordUnfolded {
         private readonly GlobalSettings globalSettings;
 
         private ChannelGridInfo channelGridInfo = null;
-        private ulong lastUsedUserID = 0; // this contains the last UserID with which the button was updated
 
         private DateTime keyPressedTimestamp = DateTime.MaxValue;
 
@@ -54,6 +53,8 @@ namespace DiscordUnfolded {
 
         public override void ReceivedGlobalSettings(ReceivedGlobalSettingsPayload payload) {
             Tools.AutoPopulateSettings(globalSettings, payload.Settings);
+            // try starting the Discord RPC connection. This will be run when any action that can use data from DiscordRPC is created
+            DiscordRPC.Instance.Start(globalSettings.ClientId, globalSettings.ClientSecret);
 
             int oldXPos = settings.XPos;
             settings.UpdateXPosDropdown(globalSettings.MaxChannelWidth);
@@ -114,7 +115,7 @@ namespace DiscordUnfolded {
 
         private void UserButtonPressed(ChannelGridInfo channelGridInfo, double timeDiff) {
             // if the button is the current user, mute or unmute the user
-            if(channelGridInfo?.UserInfo?.UserId != globalSettings.UserID)
+            if(channelGridInfo?.UserInfo?.UserId != DiscordRPC.Instance.CurrentUserID)
                 return;
             
             // deafen if the button was hold down for longer than a second of the user is currently deafened
@@ -134,12 +135,11 @@ namespace DiscordUnfolded {
             
 
             // ignore the update if no relevant information has changed. ChannelGridInfo sent by events can not be null
-            if(newChannelGridInfo == null || (newChannelGridInfo.Equals(this.channelGridInfo) && this.lastUsedUserID == globalSettings.UserID))
+            if(newChannelGridInfo == null || newChannelGridInfo.Equals(this.channelGridInfo))
                 return;
 
             //Logger.Instance.LogMessage(TracingLevel.DEBUG, "ChannelGridAction: ButtonUpdate requirements fullfilled. XPos: " + settings.XPos + " YPos: " + settings.YPos + " oldChannelGridInfo: " + this.channelGridInfo + " newChannelGridInfo: " + newChannelGridInfo);
             this.channelGridInfo = newChannelGridInfo;
-            this.lastUsedUserID = globalSettings.UserID;
 
             if(newChannelGridInfo.ChannelInfo != null) {
                 UpdateButton(newChannelGridInfo.ChannelInfo, newChannelGridInfo.UsersInChannel);
@@ -171,7 +171,7 @@ namespace DiscordUnfolded {
             }
             else if(channelInfo.ChannelType == ChannelTypes.VOICE) {
 
-                if(usersInChannel.Contains(globalSettings.UserID)) {
+                if(usersInChannel.Contains(DiscordRPC.Instance.CurrentUserID)) {
                     bitmapPath = "./Images/RedRectangle@2x.png";
                 }
                 else {

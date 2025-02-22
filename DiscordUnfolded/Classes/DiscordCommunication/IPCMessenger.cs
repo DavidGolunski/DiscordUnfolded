@@ -99,7 +99,7 @@ namespace DiscordUnfolded.DiscordCommunication {
                 try {
                     string json = ReadJson(buffer);
                     if(json == null) {
-                        Task.Delay(10);
+                        Task.Delay(10).GetAwaiter().GetResult();
                         continue;
                     }
 
@@ -117,7 +117,7 @@ namespace DiscordUnfolded.DiscordCommunication {
                     else {
                         HandleMessage(messageObject);
                     }
-                    Task.Delay(1);
+                    Task.Delay(1).GetAwaiter().GetResult();
                     return;
                 }
                 catch(Exception ex) {

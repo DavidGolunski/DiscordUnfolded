@@ -12,6 +12,7 @@ using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
 using Discord;
 using System.Security.Policy;
+using CommandLine;
 
 namespace DiscordUnfolded.DiscordCommunication {
     public class DiscordRPC {
@@ -23,8 +24,6 @@ namespace DiscordUnfolded.DiscordCommunication {
         }
 
         private static readonly string UserTokenDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "davidgolunski", "discordUnfolded");
-        private const string clientId = "1337102485017595966"; // Replace with your actual Client ID
-        private const string clientSecret = "6FWjjmhTxcaNMBwzVCZq_bKuS6KDy-qp";
         private const string redirectUri = "https://127.0.0.1:7393/callback";
         private readonly String[] scopes = { "identify", "guilds", "rpc" };
 
@@ -63,8 +62,14 @@ namespace DiscordUnfolded.DiscordCommunication {
             messenger = new IPCMessenger(true);
         }
 
-        public void Start() {
+        public void Start(string clientId, string clientSecret) {
             if(IsRunning) return;
+            Logger.Instance.LogMessage(TracingLevel.DEBUG, "Starting DiscordRPC");
+
+            if(string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(clientSecret)) {
+                Logger.Instance.LogMessage(TracingLevel.WARN, "Client ID and Client Secret can not be empty. Please enter valid values in the \"Global Settings\"");
+                return;
+            }
             blockEvents = true;
             cancellationTokenSource = new CancellationTokenSource();
             CancellationToken token = cancellationTokenSource.Token;
@@ -72,10 +77,13 @@ namespace DiscordUnfolded.DiscordCommunication {
             // start the IPC Messenger
             Task.Run(() => messenger.Connect(token), token);
 
-            Connect(token);
+            bool connectionSuccessfull = Connect(clientId, clientSecret, token);
 
-            if(token.IsCancellationRequested)
+            if(token.IsCancellationRequested || !connectionSuccessfull) {
                 Stop();
+                return;
+            }
+                
 
             UpdateAvailableGuilds();
 
@@ -88,8 +96,11 @@ namespace DiscordUnfolded.DiscordCommunication {
 
 
             Logger.Instance.LogMessage(TracingLevel.INFO, "DiscordRPC Started");
-            if(token.IsCancellationRequested)
+            if(token.IsCancellationRequested) {
                 Stop();
+                return;
+            }
+                
 
             Task.Run(() => ReadEventQueue(token), token);
 
@@ -103,21 +114,29 @@ namespace DiscordUnfolded.DiscordCommunication {
             Disconnect();
 
             Logger.Instance.LogMessage(TracingLevel.INFO, "DiscordRPC Stopped");
+            throw new Exception("Test Exception");
         }
 
         /*
          * Connecting, Disconnecting and Events
          */
-        private void Connect(CancellationToken token) {
-            while(!token.IsCancellationRequested && !messenger.Connected) {
-                Task.Delay(100, token);
+        private bool Connect(string clientId, string clientSecret, CancellationToken token) {
+            for(int i = 0; i <= 10 && !token.IsCancellationRequested && !messenger.Connected; i++) {
+                if(i == 10)
+                    return false;
+                Task.Delay(100, token).GetAwaiter().GetResult();   
             }
 
-            if(token.IsCancellationRequested) return;
+            if(token.IsCancellationRequested) return false;
 
             IPCMessage dispatchMessage = messenger.SendDispatchRequest(clientId);
 
-            if(dispatchMessage.Error != null || token.IsCancellationRequested) return;
+            if(dispatchMessage.Error != null || token.IsCancellationRequested) return false;
+
+            if(dispatchMessage.Data?["user"] == null) {
+                Logger.Instance.LogMessage(TracingLevel.ERROR, "An error occured during the connection to Discord. Make sure that you have the correct ClientID, ClientSecret and RedirectURL specified.");
+                return false;
+            }
 
             CurrentUserID = UInt64.Parse(dispatchMessage.Data["user"]["id"].ToString());
             Logger.Instance.LogMessage(TracingLevel.DEBUG, "CurrentUserID: " + CurrentUserID);
@@ -130,13 +149,18 @@ namespace DiscordUnfolded.DiscordCommunication {
                     newAccessToken = DiscordOAuth2.RefreshToken(previousAccessToken, clientId, clientSecret, scopes, token);
                 }
                 catch(Exception ex) {
+                    // ToDo: make this check safer
+                    if(ex.Message.StartsWith("Error exchanging code")) {
+                        Logger.Instance.LogMessage(TracingLevel.ERROR, "Error while exchanging code. Please check your Client ID and Client Secret! \n" + ex.Message + "\n" + ex.StackTrace);
+                        //return false;
+                    }
                     Logger.Instance.LogMessage(TracingLevel.ERROR, "Error while refreshing token: " + ex.Message + "\n" + ex.StackTrace);
                 }
 
                 if(!string.IsNullOrEmpty(newAccessToken)) {
                     SaveTokenToFile(newAccessToken);
                     Logger.Instance.LogMessage(TracingLevel.DEBUG, "Saved new token to file!");
-                    return;
+                    return false;
                 }
             }
 
@@ -144,7 +168,7 @@ namespace DiscordUnfolded.DiscordCommunication {
             // If we get here, then authenticating with a previously stored token was unsuccessfull and we need to reauthenticate again
             IPCMessage authorizeMessage = messenger.SendAuthorizeRequest(clientId, scopes);
 
-            if(authorizeMessage.Error != null || token.IsCancellationRequested) return;
+            if(authorizeMessage.Error != null || token.IsCancellationRequested) return false;
 
 
             // Send authorization Code to OAuth2 to get Bearer Access Token
@@ -155,11 +179,11 @@ namespace DiscordUnfolded.DiscordCommunication {
             }
             catch(Exception ex) {
                 Logger.Instance.LogMessage(TracingLevel.ERROR, "Received Error while retrieving access token: " + ex.StackTrace);
-                return;
+                return false;
             }
             if(accessToken == null) {
                 Logger.Instance.LogMessage(TracingLevel.ERROR, "Access Token could not be retrieved");
-                return;
+                return false;
             }
 
             // saves the access token to the file
@@ -168,7 +192,8 @@ namespace DiscordUnfolded.DiscordCommunication {
 
             // Send Authentication Request after OAuth2 has provided the bearer access token
             IPCMessage authenticationMessage = messenger.SendAuthenticateRequest(accessToken);
-            if(authenticationMessage.Error != null || token.IsCancellationRequested) return;
+            if(authenticationMessage.Error != null || token.IsCancellationRequested) return false;
+            return true;
         }
 
         private void Disconnect() {
@@ -192,15 +217,15 @@ namespace DiscordUnfolded.DiscordCommunication {
 
 
             cancellationTokenSource.Cancel();
-            cancellationTokenSource.Dispose();
-            cancellationTokenSource = null;
             messenger.Disconnect();
+            cancellationTokenSource.Dispose();
+            cancellationTokenSource = null;  
         }
 
         private void ReadEventQueue(CancellationToken token) {
             while(messenger.Connected && IsRunning && !token.IsCancellationRequested) {
                 if(messenger.EventQueue.Count == 0 || blockEvents) {
-                    Task.Delay(10);
+                    Task.Delay(10).GetAwaiter().GetResult();
                     continue;
                 }
 

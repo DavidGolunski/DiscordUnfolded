@@ -37,6 +37,8 @@ namespace DiscordUnfolded {
 
             DiscordRPC.Instance.OnSelectedGuildChanged += UpdateSelectedGuild;
             UpdateSelectedGuild(DiscordRPC.Instance.SelectedGuild);
+
+            GlobalSettingsManager.Instance.RequestGlobalSettings();
         }
 
         public override void Dispose() {
@@ -53,7 +55,13 @@ namespace DiscordUnfolded {
 
         public override void OnTick() { }
 
-        public override void ReceivedGlobalSettings(ReceivedGlobalSettingsPayload payload) {  }
+        public override void ReceivedGlobalSettings(ReceivedGlobalSettingsPayload payload) {
+            GlobalSettings globalSettings = new GlobalSettings();
+            Tools.AutoPopulateSettings(globalSettings, payload.Settings);
+            
+            // try starting the Discord RPC connection. This will be run when any action that can use data from DiscordRPC is created
+            DiscordRPC.Instance.Start(globalSettings.ClientId, globalSettings.ClientSecret);
+        }
 
         public override void ReceivedSettings(ReceivedSettingsPayload payload) {
             int oldPosition = settings.Position;

@@ -14,9 +14,14 @@
 <body>
     <div class="sdpi-wrapper">
         <div class="sdpi-item">
-            <div class="sdpi-item-label">Your User ID</div>
-            <sdpi-textfield class="sdpi-item-value sdProperty" setting="userIdString" id="userIdString"
-                            value="000000000000000000" required oninput="setSettings()">
+            <div class="sdpi-item-label">Your Client ID</div>
+            <sdpi-textfield class="sdpi-item-value sdProperty" setting="clientId" id="clientId"
+                            value="" required oninput="setSettings()">
+        </div>
+        <div class="sdpi-item">
+            <div class="sdpi-item-label">Your Client Secret</div>
+            <sdpi-textfield class="sdpi-item-value sdProperty" setting="clientSecret" id="clientSecret"
+                            value="" required oninput="setSettings()">
         </div>
 
         <div class="sdpi-item">

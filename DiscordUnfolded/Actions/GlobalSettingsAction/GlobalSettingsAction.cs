@@ -26,7 +26,7 @@ namespace DiscordUnfolded {
                 DiscordRPC.Instance.Stop();
             }
             else {
-                DiscordRPC.Instance.Start();
+                DiscordRPC.Instance.Start(settings.ClientId, settings.ClientSecret);
             }
         }
 
@@ -34,15 +34,20 @@ namespace DiscordUnfolded {
 
         public override void OnTick() { }
 
+        // if local settings are received then set them and send out a "GlobalSettingsReceived" message
         public override void ReceivedSettings(ReceivedSettingsPayload payload) {
             Tools.AutoPopulateSettings(settings, payload.Settings);
-            ChannelGridManager.Instance.Width = settings.MaxChannelWidth;
             SaveSettings();
+            Logger.Instance.LogMessage(TracingLevel.DEBUG, "GlobalSettingsAction: Received Settings: " + settings);
+            ChannelGridManager.Instance.Width = settings.MaxChannelWidth;
+            DiscordRPC.Instance.Stop();
+            DiscordRPC.Instance.Start(settings.ClientId, settings.ClientSecret);
         }
 
+        // if global settings are received, then load the settings, but do not send out another "GlobalSettingsReceived" message
         public override void ReceivedGlobalSettings(ReceivedGlobalSettingsPayload payload) {
             Tools.AutoPopulateSettings(settings, payload.Settings);
-
+            Logger.Instance.LogMessage(TracingLevel.DEBUG, "GlobalSettingsAction: Received Global Settings: " + settings);
             Connection.SetSettingsAsync(JObject.FromObject(settings)).GetAwaiter().GetResult();
         }
 
