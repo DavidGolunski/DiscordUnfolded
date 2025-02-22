@@ -345,6 +345,24 @@ namespace DiscordUnfolded.DiscordCommunication {
             return SendMessageAndGetIPCMessageResponse(MessageType.GET_CHANNEL, generatedNonce, request);
         }
 
+        public IPCMessage SendSetVoiceSettingsRequest(bool muted, bool deafened) {
+            if(!Connected || cancellationToken.IsCancellationRequested) {
+                DebugLog("SendSetVoiceSettingsRequest failed because the pipe was not connected or a cancellation was requested");
+                return IPCMessage.Empty;
+            }
+
+            var generatedNonce = Guid.NewGuid().ToString();
+            var request = new {
+                nonce = generatedNonce,
+                cmd = MessageType.SET_VOICE_SETTINGS.ToString(),
+                args = new {
+                    mute = muted,
+                    deaf = deafened
+                }
+            };
+
+            return SendMessageAndGetIPCMessageResponse(MessageType.SET_VOICE_SETTINGS, generatedNonce, request);
+        }
 
         /*
          * Subscribing and Unsibscribing from Events

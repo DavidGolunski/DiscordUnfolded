@@ -117,15 +117,18 @@ namespace DiscordUnfolded {
             // if the button is the current user, mute or unmute the user
             if(channelGridInfo?.UserInfo?.UserId != DiscordRPC.Instance.CurrentUserID)
                 return;
-            
-            // deafen if the button was hold down for longer than a second of the user is currently deafened
-            if(timeDiff > 1000 || channelGridInfo.UserInfo.VoiceState == VoiceStates.DEAFENED) {
-                KeyBindAction.KeyBindActions["DEAFEN"].Execute();
+
+            VoiceStates currentVoiceState = channelGridInfo.UserInfo.VoiceState;
+
+            if(currentVoiceState == VoiceStates.DEAFENED || currentVoiceState == VoiceStates.MUTED) {
+                DiscordRPC.Instance.SetVoiceState(VoiceStates.UNMUTED);
             }
-            // mute if the button was hold down less than a second
+            else if(timeDiff > 1000) {
+                DiscordRPC.Instance.SetVoiceState(VoiceStates.DEAFENED);
+            }
             else {
-                KeyBindAction.KeyBindActions["MUTE"].Execute();
-            } 
+                DiscordRPC.Instance.SetVoiceState(VoiceStates.MUTED);
+            }
         }
 
         /*

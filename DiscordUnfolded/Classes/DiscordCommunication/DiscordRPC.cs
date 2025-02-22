@@ -420,7 +420,69 @@ namespace DiscordUnfolded.DiscordCommunication {
             }
         }
 
-        
+        public void SelectGuild(ulong guildId) {
+            bool guildHasChanged = (this.SelectedGuild == null && guildId != 0) || (this.SelectedGuild != null && this.SelectedGuild.GuildId != guildId);
+
+            // if the selected guild has changed, unsubsribe from all channel specific events
+            if(guildHasChanged) {
+                foreach((EventType evt, ulong channelId) in subscribedChannels) {
+                    messenger.SendChannelUnsubscribeRequest(evt, channelId);
+                }
+                subscribedChannels.Clear();
+            }
+
+
+            this.SelectedGuild?.Dispose();
+
+            this.SelectedGuild = GetDiscordGuild(guildId);
+
+            // resubscribe to all events from channels
+            if(guildHasChanged && this.SelectedGuild != null) {
+
+
+                foreach(ulong voiceChannelId in this.SelectedGuild.GetOrderedVoiceChannelIDs()) {
+
+                    messenger.SendChannelSubscribeEvent(EventType.VOICE_STATE_CREATE, voiceChannelId);
+                    subscribedChannels.Add((EventType.VOICE_STATE_CREATE, voiceChannelId));
+
+                    messenger.SendChannelSubscribeEvent(EventType.VOICE_STATE_UPDATE, voiceChannelId);
+                    subscribedChannels.Add((EventType.VOICE_STATE_UPDATE, voiceChannelId));
+
+                    messenger.SendChannelSubscribeEvent(EventType.VOICE_STATE_DELETE, voiceChannelId);
+                    subscribedChannels.Add((EventType.VOICE_STATE_DELETE, voiceChannelId));
+
+                    messenger.SendChannelSubscribeEvent(EventType.SPEAKING_START, voiceChannelId);
+                    subscribedChannels.Add((EventType.SPEAKING_START, voiceChannelId));
+
+                    messenger.SendChannelSubscribeEvent(EventType.SPEAKING_STOP, voiceChannelId);
+                    subscribedChannels.Add((EventType.SPEAKING_STOP, voiceChannelId));
+                }
+            }
+
+            // if the selected guild is null, it might be that the client has left the server
+            if(this.SelectedGuild == null)
+                UpdateAvailableGuilds();
+
+            OnSelectedGuildChanged?.Invoke(this.SelectedGuild);
+        }
+
+        public void SetVoiceState(VoiceStates voiceState) {
+            if(voiceState == VoiceStates.DEAFENED) {
+                messenger.SendSetVoiceSettingsRequest(true, true);
+            }
+            else if(voiceState == VoiceStates.MUTED) {
+                messenger.SendSetVoiceSettingsRequest(true, false);
+            }
+            else if(voiceState == VoiceStates.UNMUTED) {
+                messenger.SendSetVoiceSettingsRequest(false, false);
+            }
+
+        }
+
+        /*
+         * Supportive Functions
+         */
+
         private void UpdateAvailableGuilds() {
             blockEvents = true;
             AvailableGuilds.Clear();
@@ -472,53 +534,7 @@ namespace DiscordUnfolded.DiscordCommunication {
             blockEvents = false;
         }
 
-        public void SelectGuild(ulong guildId) {
-            bool guildHasChanged = (this.SelectedGuild == null && guildId != 0) ||  (this.SelectedGuild != null && this.SelectedGuild.GuildId != guildId);
-
-            // if the selected guild has changed, unsubsribe from all channel specific events
-            if(guildHasChanged) {
-                foreach((EventType evt, ulong channelId) in subscribedChannels) {
-                    messenger.SendChannelUnsubscribeRequest(evt, channelId);
-                }
-                subscribedChannels.Clear();
-            }
-
-
-            this.SelectedGuild?.Dispose();
-
-            this.SelectedGuild = GetDiscordGuild(guildId);
-
-            // resubscribe to all events from channels
-            if(guildHasChanged && this.SelectedGuild != null) {
-
-
-                foreach(ulong voiceChannelId in this.SelectedGuild.GetOrderedVoiceChannelIDs()) {
-
-                    messenger.SendChannelSubscribeEvent(EventType.VOICE_STATE_CREATE, voiceChannelId);
-                    subscribedChannels.Add((EventType.VOICE_STATE_CREATE, voiceChannelId));
-
-                    messenger.SendChannelSubscribeEvent(EventType.VOICE_STATE_UPDATE, voiceChannelId);
-                    subscribedChannels.Add((EventType.VOICE_STATE_UPDATE, voiceChannelId));
-
-                    messenger.SendChannelSubscribeEvent(EventType.VOICE_STATE_DELETE, voiceChannelId);
-                    subscribedChannels.Add((EventType.VOICE_STATE_DELETE, voiceChannelId));
-
-                    messenger.SendChannelSubscribeEvent(EventType.SPEAKING_START, voiceChannelId);
-                    subscribedChannels.Add((EventType.SPEAKING_START, voiceChannelId));
-
-                    messenger.SendChannelSubscribeEvent(EventType.SPEAKING_STOP, voiceChannelId);
-                    subscribedChannels.Add((EventType.SPEAKING_STOP, voiceChannelId));
-                }
-            }
-
-            // if the selected guild is null, it might be that the client has left the server
-            if(this.SelectedGuild == null)
-                UpdateAvailableGuilds();
-
-            OnSelectedGuildChanged?.Invoke(this.SelectedGuild);
-        }
-
-
+        
         // creates a DiscordGuild based on data retrieved from the client
         private DiscordGuild GetDiscordGuild(ulong guildId) {
             if(!IsRunning || !messenger.Connected) return null;
