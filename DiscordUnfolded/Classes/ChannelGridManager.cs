@@ -83,6 +83,17 @@ namespace DiscordUnfolded {
         // a representation of all information that is available from a guild on a grid
         private readonly List<List<ChannelGridInfo>> channelGrid = new List<List<ChannelGridInfo>>();
 
+        // the selected user id allows the 
+        private ulong selectedUserId = 0;
+        public ulong SelectedUserId {
+            get => selectedUserId;
+            set {
+                if (value == selectedUserId) return;
+                selectedUserId = value;
+                UpdateChannelGrid();
+            }
+        }
+
 
         private ChannelGridManager() {
 
@@ -137,7 +148,7 @@ namespace DiscordUnfolded {
             // unsubscribe from all channels and users in the old guild
             // DiscordRPC automatically unsubscribes all events when the selected guild changes
 
-
+            SelectedUserId = 0;
             // null handling
             if(discordGuild == null) {
                 UpdateChannelGrid();
@@ -208,7 +219,8 @@ namespace DiscordUnfolded {
                 // add the voice channel info in first position
                 channelGrid.Last().Add(new ChannelGridInfo(voiceChannel.GetInfo(), userIDsInVoiceChannel));
 
-                
+
+                DiscordUser selectedDiscordUser = null;
                 for(int i = 0; i < userIDsInVoiceChannel.Count; i++) {
                     // if the number of users exceeds the width, then add a new row and add an empty button to the first position
                     if(i > 0 && i % Width == 0) {
@@ -222,9 +234,34 @@ namespace DiscordUnfolded {
                         channelGrid.Last().Add(new ChannelGridInfo());
                         continue;
                     }
+                    else if(discordUserInVoiceChannel.UserId == SelectedUserId) {
+                        selectedDiscordUser = discordUserInVoiceChannel;
+                        continue;
+                    }
 
                     channelGrid.Last().Add(new ChannelGridInfo(discordUserInVoiceChannel.GetInfo()));
                 }
+
+                // create a new row in which the volume of the selected user can be modified
+                if(selectedDiscordUser == null)
+                    continue;
+
+                // if the last user that should have been added was the selected user and a new row was created for that user, then we need to remove that row again
+                if(channelGrid.Last().Count == 1 && new ChannelGridInfo().Equals(channelGrid.Last()[0]))
+                    channelGrid.RemoveAt(channelGrid.Count - 1);
+
+                // if there is not enough space to show the plus and minus buttons, then create a new row
+                if(Width - channelGrid.Last().Count < 3) {
+                    channelGrid.Add(new List<ChannelGridInfo>());
+                    // add an empty space if the width allows for it
+                    if(Width > 3)
+                        channelGrid.Last().Add(new ChannelGridInfo());
+                }
+
+                channelGrid.Last().Add(new ChannelGridInfo("MINUS"));
+                channelGrid.Last().Add(new ChannelGridInfo(selectedDiscordUser.GetInfo()));
+                channelGrid.Last().Add(new ChannelGridInfo("PLUS"));
+
             }
 
             List<ulong> textChannelIDs = DiscordRPC.Instance.SelectedGuild.GetOrderedTextChannelIDs();

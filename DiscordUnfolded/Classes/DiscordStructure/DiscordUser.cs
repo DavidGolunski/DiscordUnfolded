@@ -66,8 +66,20 @@ namespace DiscordUnfolded.DiscordStructure {
             }
         }
 
+        private int volume;
+        public int Volume {
+            get => volume;
+            set {
+                if(volume == value) return;
+                volume = value;
 
-        public DiscordUser(DiscordVoiceChannel voiceChannel, ulong userId, string userName, VoiceStates voiceState, string iconUrl) {
+                // invoke guild event from this level
+                voiceChannel.GetGuild().OnUserInfoChanged?.Invoke(this, GetInfo());
+            }
+        }
+
+
+        public DiscordUser(DiscordVoiceChannel voiceChannel, ulong userId, string userName, VoiceStates voiceState, string iconUrl, int volume) {
             Debug.Assert(voiceChannel != null);
             Debug.Assert(userId != 0);
             this.voiceChannel = voiceChannel;
@@ -76,6 +88,7 @@ namespace DiscordUnfolded.DiscordStructure {
             this.voiceState = voiceState;
             this.iconUrl = iconUrl;
             this.isSpeaking = false;
+            this.volume = volume;
         }
 
         public void Dispose() {
@@ -83,7 +96,7 @@ namespace DiscordUnfolded.DiscordStructure {
         }
 
         public DiscordUserInfo GetInfo() {
-            return new DiscordUserInfo(UserId, UserName, VoiceState, IconUrl, IsSpeaking);
+            return new DiscordUserInfo(UserId, UserName, VoiceState, IconUrl, IsSpeaking, Volume);
         }
 
         public DiscordVoiceChannel GetVoiceChannel() {
@@ -93,8 +106,6 @@ namespace DiscordUnfolded.DiscordStructure {
         public override string ToString() {
             return GetInfo().ToString();
         }
-
-        
     }
 
 }

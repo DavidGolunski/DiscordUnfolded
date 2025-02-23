@@ -69,7 +69,8 @@ namespace DiscordUnfolded.Classes {
 
 
         // adds text to a 144x144 bitmap image. The number of characters in each "line" of the string must not exceed 8
-        public static Bitmap AddTextToBitmap(Bitmap bitmap, string input, Color textColor) {
+        // if customYOffset is negative, then the function will automatically center the text
+        public static Bitmap AddTextToBitmap(Bitmap bitmap, string input, Color textColor, int customYOffset = -1) {
             List<string> lines = input.Split('\n').ToList();
 
 
@@ -93,6 +94,10 @@ namespace DiscordUnfolded.Classes {
 
                 // Ensure text doesn't go beyond padding limits
                 startY = Math.Max(startY, padding);
+
+                if(customYOffset >= 0) {
+                    startY = customYOffset;
+                }
 
                 foreach(string line in lines) {
                     // Measure text width

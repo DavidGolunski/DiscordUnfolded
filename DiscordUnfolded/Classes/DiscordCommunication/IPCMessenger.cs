@@ -364,6 +364,27 @@ namespace DiscordUnfolded.DiscordCommunication {
             return SendMessageAndGetIPCMessageResponse(MessageType.SET_VOICE_SETTINGS, generatedNonce, request);
         }
 
+        public IPCMessage SendSetUserVoiceSettingsRequest(ulong userID, int newVolume) {
+            if(!Connected || cancellationToken.IsCancellationRequested) {
+                DebugLog("SendSetUserVoiceSettingsRequest failed because the pipe was not connected or a cancellation was requested");
+                return IPCMessage.Empty;
+            }
+            newVolume = Math.Min(newVolume, 200);
+            newVolume = Math.Max(0, newVolume);
+
+            var generatedNonce = Guid.NewGuid().ToString();
+            var request = new {
+                nonce = generatedNonce,
+                cmd = MessageType.SET_USER_VOICE_SETTINGS.ToString(),
+                args = new {
+                    user_id = userID.ToString(),
+                    volume = newVolume
+                }
+            };
+
+            return SendMessageAndGetIPCMessageResponse(MessageType.SET_USER_VOICE_SETTINGS, generatedNonce, request);
+        }
+
         /*
          * Subscribing and Unsibscribing from Events
          */
@@ -553,7 +574,6 @@ namespace DiscordUnfolded.DiscordCommunication {
             await pipe.WriteAsync(ms.ToArray(), 0, (int) ms.Length);
             await pipe.FlushAsync();
         }
-
 
         /*
          * Debugging

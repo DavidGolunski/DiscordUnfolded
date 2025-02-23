@@ -32,6 +32,7 @@ namespace DiscordUnfolded.DiscordCommunication {
         private CancellationTokenSource cancellationTokenSource;
         private readonly IPCMessenger messenger;
 
+        // when subscribing to guild, events are instantly thrown. This prevents endless loops
         private bool blockEvents = false;
 
         // A place to store all subscriptions that have been made without any additional parameters
@@ -114,7 +115,6 @@ namespace DiscordUnfolded.DiscordCommunication {
             Disconnect();
 
             Logger.Instance.LogMessage(TracingLevel.INFO, "DiscordRPC Stopped");
-            throw new Exception("Test Exception");
         }
 
         /*
@@ -238,6 +238,9 @@ namespace DiscordUnfolded.DiscordCommunication {
             if(blockEvents)
                 return;
 
+            Logger.Instance.LogMessage(TracingLevel.DEBUG, "Handling Event: " + eventType);
+
+
             switch(eventType) {
                 case EventType.GUILD_CREATE:
                     ulong newGuildId = UInt64.Parse(eventData["guild"]["id"]?.ToString());
@@ -322,7 +325,7 @@ namespace DiscordUnfolded.DiscordCommunication {
                     this.SelectedGuild.GetUser(newUserId)?.GetVoiceChannel()?.RemoveUser(newUserId);
 
                     DiscordVoiceChannel voiceChannel = this.SelectedGuild.GetVoiceChannel(newUser.GetVoiceChannel().ChannelId);
-                    voiceChannel.AddUser(new DiscordUser(voiceChannel, newUser.UserId, newUser.UserName, newUser.VoiceState, newUser.IconUrl));
+                    voiceChannel.AddUser(new DiscordUser(voiceChannel, newUser.UserId, newUser.UserName, newUser.VoiceState, newUser.IconUrl, newUser.Volume));
                     guild.Dispose();
                     //Logger.Instance.LogMessage(TracingLevel.DEBUG, "DiscordRPC - VOICE_STATE_CREATE executed. Voice Channel: " + voiceChannel);
                     Logger.Instance.LogMessage(TracingLevel.DEBUG, "DiscordRPC - VOICE_STATE_CREATE currentGuild. " + this.SelectedGuild);
@@ -345,9 +348,14 @@ namespace DiscordUnfolded.DiscordCommunication {
                         break;
                     ulong userUpdateId = UInt64.Parse(eventData["user"]["id"].ToString());
                     VoiceStates newVoiceState = GetVoiceState(eventData["voice_state"]);
+                    int updatedVolume = GetRoundedVolume(Double.Parse(eventData["volume"].ToString()));
+
                     DiscordUser voice_upate_user = this.SelectedGuild.GetUser(userUpdateId);
-                    if(voice_upate_user != null)
+                    if(voice_upate_user != null) {
                         voice_upate_user.VoiceState = newVoiceState;
+                        voice_upate_user.Volume = updatedVolume;
+                    }
+                       
                     break;
                 case EventType.SPEAKING_START:
                     if(this.SelectedGuild == null)
@@ -476,6 +484,23 @@ namespace DiscordUnfolded.DiscordCommunication {
             else if(voiceState == VoiceStates.UNMUTED) {
                 messenger.SendSetVoiceSettingsRequest(false, false);
             }
+
+        }
+
+        public void SetUserVolume(ulong discordUserId, int volume) {
+            if(discordUserId == 0 || SelectedGuild == null) return;
+
+            DiscordUser discordUser = SelectedGuild.GetUser(discordUserId);
+            if(discordUser == null) return;
+
+            IPCMessage message = messenger.SendSetUserVoiceSettingsRequest(discordUser.UserId, GetRoundedVolume(volume));
+            if(message.Error != null) {
+                Logger.Instance.LogMessage(TracingLevel.ERROR, "An Error occured while trying to set User Volume. UserID: " + discordUserId + " Volume: " + volume + " Message: " + message.Error);
+                return;
+            }
+
+            int newVolume = Int32.Parse(message.Data["volume"].ToString());
+            discordUser.Volume = GetRoundedVolume(newVolume);
 
         }
 
@@ -634,7 +659,9 @@ namespace DiscordUnfolded.DiscordCommunication {
                     ulong userId = UInt64.Parse(userJToken["user"]["id"].ToString());
                     string userName = userJToken["user"]["global_name"]?.ToString();
                     string avatar = userJToken["user"]["avatar"]?.ToString();
+                    int volume = GetRoundedVolume(Double.Parse(userJToken["volume"].ToString()));
                     string iconUrl = null;
+
 
                     if(!string.IsNullOrEmpty(avatar)) {
                         iconUrl = $"https://cdn.discordapp.com/avatars/{userId}/{avatar}.png";
@@ -643,7 +670,7 @@ namespace DiscordUnfolded.DiscordCommunication {
 
                     VoiceStates voiceState = GetVoiceState(userJToken["voice_state"]);
 
-                    DiscordUser discordUser = new DiscordUser(voiceChannel, userId, userName, voiceState, iconUrl);
+                    DiscordUser discordUser = new DiscordUser(voiceChannel, userId, userName, voiceState, iconUrl, volume);
                     voiceChannel.AddUser(discordUser);
                 }
 
@@ -663,7 +690,7 @@ namespace DiscordUnfolded.DiscordCommunication {
             if(voiceStateInfo["deaf"]?.ToString() == "True" || voiceStateInfo["self_deaf"]?.ToString() == "True") 
                 return VoiceStates.DEAFENED;
 
-            if(voiceStateInfo["mute"]?.ToString() == "True" || voiceStateInfo["self_mute"]?.ToString() == "True" ) 
+            if(voiceStateInfo["mute"]?.ToString() == "True" || voiceStateInfo["self_mute"]?.ToString() == "True") 
                 return VoiceStates.MUTED;
 
             return VoiceStates.UNMUTED;
@@ -687,6 +714,9 @@ namespace DiscordUnfolded.DiscordCommunication {
             return iconUrl;
         }
 
+        private int GetRoundedVolume(double volume) {
+            return (int) (Math.Round(volume / 5) * 5);
+        }
 
         /*
          * File Management

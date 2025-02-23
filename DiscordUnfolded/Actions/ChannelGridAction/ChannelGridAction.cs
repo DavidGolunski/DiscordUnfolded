@@ -16,6 +16,7 @@ using System.Windows.Forms;
 using WindowsInput;
 using WindowsInput.Native;
 using DiscordUnfolded.DiscordCommunication;
+using System.Diagnostics;
 
 namespace DiscordUnfolded {
     [PluginActionId("com.davidgolunski.discordunfolded.channelgridaction")]
@@ -102,22 +103,32 @@ namespace DiscordUnfolded {
                 return;
             }
 
-            // if the button is the current user, mute or unmute the user. Does nothing if the button is not the current user
+            // if the button is the current user, mute or unmute the user. Selects the user if the button is not the current user
             UserButtonPressed(channelGridInfo, timeDiff);
 
+            // select the channel if the button is a channel button
             if(channelGridInfo?.ChannelInfo?.ChannelId != null) {
                 DiscordRPC.Instance.SelectChannel(channelGridInfo.ChannelInfo.ChannelType, channelGridInfo.ChannelInfo.ChannelId);
             }
+
+            // increase or decrease volume for special cases
+            SpecialCaseButtonPressed(channelGridInfo?.SpecialCaseString);
 
 
             keyPressedTimestamp = DateTime.MaxValue;
         }
 
         private void UserButtonPressed(ChannelGridInfo channelGridInfo, double timeDiff) {
-            // if the button is the current user, mute or unmute the user
-            if(channelGridInfo?.UserInfo?.UserId != DiscordRPC.Instance.CurrentUserID)
+            if(channelGridInfo?.UserInfo?.UserId == null || channelGridInfo?.UserInfo?.UserId == 0)
                 return;
 
+            //if the button is not the current user, then select/deselect the user
+            if(channelGridInfo.UserInfo.UserId != DiscordRPC.Instance.CurrentUserID) {
+                ChannelGridManager.Instance.SelectedUserId = ChannelGridManager.Instance.SelectedUserId == channelGridInfo.UserInfo.UserId ? 0 : channelGridInfo.UserInfo.UserId;
+                return;
+            }
+
+            // if the button is the current user, mute or unmute the user
             VoiceStates currentVoiceState = channelGridInfo.UserInfo.VoiceState;
 
             if(currentVoiceState == VoiceStates.DEAFENED || currentVoiceState == VoiceStates.MUTED) {
@@ -131,12 +142,26 @@ namespace DiscordUnfolded {
             }
         }
 
+        private void SpecialCaseButtonPressed(string specialCaseString) {
+            if(string.IsNullOrEmpty(specialCaseString) || ChannelGridManager.Instance.SelectedUserId == 0 || DiscordRPC.Instance.SelectedGuild == null) return;
+
+            DiscordUser selectedDiscordUser = DiscordRPC.Instance.SelectedGuild.GetUser(ChannelGridManager.Instance.SelectedUserId);
+            if(selectedDiscordUser == null) return;
+
+            int oldVolume = selectedDiscordUser.Volume;
+
+            if("PLUS".Equals(specialCaseString)) {
+                DiscordRPC.Instance.SetUserVolume(selectedDiscordUser.UserId, oldVolume + 5);
+            }
+            else {
+                DiscordRPC.Instance.SetUserVolume(selectedDiscordUser.UserId, oldVolume - 5);
+            }
+        }
+
         /*
          * Update Button Logic
          */
         public void UpdateButton(object sender, ChannelGridInfo newChannelGridInfo) {
-            
-
             // ignore the update if no relevant information has changed. ChannelGridInfo sent by events can not be null
             if(newChannelGridInfo == null || newChannelGridInfo.Equals(this.channelGridInfo))
                 return;
@@ -150,6 +175,10 @@ namespace DiscordUnfolded {
             }
             if(newChannelGridInfo.UserInfo != null) {
                 UpdateButton(newChannelGridInfo.UserInfo);
+                return;
+            }
+            if(newChannelGridInfo.SpecialCaseString != null) {
+                UpdateButton(newChannelGridInfo.SpecialCaseString);
                 return;
             }
 
@@ -226,11 +255,31 @@ namespace DiscordUnfolded {
                 bitmap = ImageTools.MergeBitmaps(bitmap, highlightBitmap);
             }
 
+            // display the volume if the user is currently selected
+            if(userInfo.UserId == ChannelGridManager.Instance.SelectedUserId) {
+                bitmap = ImageTools.AddTextToBitmap(bitmap, ((int) userInfo.Volume).ToString(), Color.White, 100);
+            }
 
             Connection.SetImageAsync(bitmap).GetAwaiter().GetResult();
             bitmap.Dispose();
             highlightBitmap?.Dispose();
-            return;
+        }
+
+        private void UpdateButton(string specialCaseString) {
+            if(!"PLUS".Equals(specialCaseString) && !"MINUS".Equals(specialCaseString)) {
+                Logger.Instance.LogMessage(TracingLevel.ERROR, "ChannelGridAction - SpecialCaseString was " +  specialCaseString);
+            }
+
+            Bitmap bitmap = null;
+            if(specialCaseString == "PLUS") {
+                bitmap = ImageTools.GetBitmapFromFilePath("./Actions/ChannelGridAction/Plus@2x.png");
+            }
+            else {
+                bitmap = ImageTools.GetBitmapFromFilePath("./Actions/ChannelGridAction/Minus@2x.png");
+            }
+            Connection.SetImageAsync(bitmap).GetAwaiter().GetResult();
+            Logger.Instance.LogMessage(TracingLevel.DEBUG, "ChannelGridAction - Updated button with Special Case String " + specialCaseString);
+            bitmap.Dispose();
         }
 
        

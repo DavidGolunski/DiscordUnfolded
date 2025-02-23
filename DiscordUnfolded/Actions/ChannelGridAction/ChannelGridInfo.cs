@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using BarRaider.SdTools;
 using DiscordUnfolded.DiscordStructure;
 
 namespace DiscordUnfolded {
@@ -12,10 +14,14 @@ namespace DiscordUnfolded {
         public List<ulong> UsersInChannel { get; set; }
         public DiscordUserInfo UserInfo { get; set; }
 
+        // a button can also just be a "PLUS" or "MINUS" button, to change the volume of a selected user
+        public string SpecialCaseString { get; set; }   
+
         public ChannelGridInfo() {
             ChannelInfo = null;
             UsersInChannel = new List<ulong>();
             UserInfo = null;
+            SpecialCaseString = null;
         }
 
         public ChannelGridInfo(DiscordChannelInfo channelInfo) {
@@ -35,6 +41,18 @@ namespace DiscordUnfolded {
             UsersInChannel = new List<ulong>();
             UserInfo = userInfo;
         }
+
+        public ChannelGridInfo(string specialCase) {
+            if(!"PLUS".Equals(specialCase) && !"MINUS".Equals(specialCase)) {
+                Logger.Instance.LogMessage(TracingLevel.ERROR, "ChannelGridInfo - specialCase was " + specialCase);
+            }
+
+            ChannelInfo = null;
+            UsersInChannel = new List<ulong>();
+            UserInfo = null;
+            SpecialCaseString = specialCase;
+        }
+
         /*
          * Overrides
          */
@@ -53,6 +71,12 @@ namespace DiscordUnfolded {
             if(this.UserInfo == null && other.UserInfo != null)
                 return false;
             if(this.UserInfo != null && !this.UserInfo.Equals(other.UserInfo)) 
+                return false;
+
+            // special case string
+            if(this.SpecialCaseString == null && other.SpecialCaseString != null) 
+                return false;
+            if(this.SpecialCaseString != null && !this.SpecialCaseString.Equals(other.SpecialCaseString))
                 return false;
 
             // UsersInChannel (can never be null)
@@ -94,6 +118,13 @@ namespace DiscordUnfolded {
                 message += UserInfo.ToString();
             else
                 message += "null";
+
+            if(string.IsNullOrEmpty(SpecialCaseString))
+                message += ", null";
+            else
+                message += ", " + SpecialCaseString;
+
+
             return message;
         }
     }

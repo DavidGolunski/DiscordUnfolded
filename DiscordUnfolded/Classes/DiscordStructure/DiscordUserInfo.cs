@@ -22,6 +22,7 @@ namespace DiscordUnfolded.DiscordStructure {
         public VoiceStates VoiceState { get; set; }
         public string IconUrl { get; set; }
         public bool IsSpeaking { get; set; }
+        public int Volume { get; set; }
 
 
         public DiscordUserInfo() {
@@ -30,16 +31,18 @@ namespace DiscordUnfolded.DiscordStructure {
             VoiceState = VoiceStates.DISCONNECTED;
             IconUrl = string.Empty;
             IsSpeaking = false;
+            Volume = 100;
         }
 
 
-        public DiscordUserInfo(ulong userId, string userName, VoiceStates voiceState, string iconUrl, bool IsSpeaking) {
+        public DiscordUserInfo(ulong userId, string userName, VoiceStates voiceState, string iconUrl, bool isSpeaking, int volume) {
             Debug.Assert(userId != 0);
             this.UserId = userId;
             this.UserName = userName;
             this.VoiceState = voiceState;
             this.IconUrl = iconUrl;
-            this.IsSpeaking = IsSpeaking;
+            this.IsSpeaking = isSpeaking;
+            this.Volume = volume;
         }
 
 
@@ -54,7 +57,8 @@ namespace DiscordUnfolded.DiscordStructure {
                 && this.UserName == other.UserName
                 && this.VoiceState == other.VoiceState
                 && this.IconUrl == other.IconUrl
-                && this.IsSpeaking == other.IsSpeaking;
+                && this.IsSpeaking == other.IsSpeaking
+                && this.Volume == other.Volume;
         }
 
         public override int GetHashCode() {
@@ -65,12 +69,13 @@ namespace DiscordUnfolded.DiscordStructure {
             hash = hash * 23 + (VoiceState.GetHashCode());
             hash = hash * 23 + (IconUrl.GetHashCode());
             hash = hash * 23 + (IsSpeaking.GetHashCode());
+            hash = hash * 23 + (Volume.GetHashCode());
 
             return hash;
         }
 
         public override string ToString() {
-            return "User: " + UserId.ToString() + "," + UserName + "," + VoiceState.ToString() + "," + IconUrl + "," + IsSpeaking;
+            return "User: " + UserId.ToString() + "," + UserName + "," + VoiceState.ToString() + "," + IconUrl + "," + IsSpeaking + "," + Volume;
         }
     }
 }
