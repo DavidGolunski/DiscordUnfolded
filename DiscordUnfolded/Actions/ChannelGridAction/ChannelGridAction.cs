@@ -55,7 +55,7 @@ namespace DiscordUnfolded {
         public override void ReceivedGlobalSettings(ReceivedGlobalSettingsPayload payload) {
             Tools.AutoPopulateSettings(globalSettings, payload.Settings);
             // try starting the Discord RPC connection. This will be run when any action that can use data from DiscordRPC is created
-            DiscordRPC.Instance.Start(globalSettings.ClientId, globalSettings.ClientSecret);
+            DiscordRPC.Instance.Start(globalSettings.ClientId, globalSettings.ClientSecret, globalSettings.DefaultGuildIdString);
 
             int oldXPos = settings.XPos;
             settings.UpdateXPosDropdown(globalSettings.MaxChannelWidth);
@@ -266,11 +266,12 @@ namespace DiscordUnfolded {
         }
 
         private void UpdateButton(string specialCaseString) {
-            if(!"PLUS".Equals(specialCaseString) && !"MINUS".Equals(specialCaseString)) {
-                Logger.Instance.LogMessage(TracingLevel.ERROR, "ChannelGridAction - SpecialCaseString was " +  specialCaseString);
-            }
+            if(string.IsNullOrEmpty(specialCaseString)) 
+                return; 
 
-            Bitmap bitmap = null;
+            Debug.Assert("PLUS".Equals(specialCaseString) || "MINUS".Equals(specialCaseString));
+
+            Bitmap bitmap;
             if(specialCaseString == "PLUS") {
                 bitmap = ImageTools.GetBitmapFromFilePath("./Actions/ChannelGridAction/Plus@2x.png");
             }

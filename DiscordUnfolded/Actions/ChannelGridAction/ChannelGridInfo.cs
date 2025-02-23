@@ -43,9 +43,7 @@ namespace DiscordUnfolded {
         }
 
         public ChannelGridInfo(string specialCase) {
-            if(!"PLUS".Equals(specialCase) && !"MINUS".Equals(specialCase)) {
-                Logger.Instance.LogMessage(TracingLevel.ERROR, "ChannelGridInfo - specialCase was " + specialCase);
-            }
+            Debug.Assert("PLUS".Equals(specialCase) || "MINUS".Equals(specialCase));
 
             ChannelInfo = null;
             UsersInChannel = new List<ulong>();

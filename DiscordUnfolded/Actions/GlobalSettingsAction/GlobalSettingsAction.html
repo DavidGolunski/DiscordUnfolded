@@ -14,12 +14,12 @@
 <body>
     <div class="sdpi-wrapper">
         <div class="sdpi-item">
-            <div class="sdpi-item-label">Your Client ID</div>
+            <div class="sdpi-item-label">Client ID</div>
             <sdpi-textfield class="sdpi-item-value sdProperty" setting="clientId" id="clientId"
                             value="" required oninput="setSettings()">
         </div>
         <div class="sdpi-item">
-            <div class="sdpi-item-label">Your Client Secret</div>
+            <div class="sdpi-item-label">Client Secret</div>
             <sdpi-textfield class="sdpi-item-value sdProperty" setting="clientSecret" id="clientSecret"
                             value="" required oninput="setSettings()">
         </div>
@@ -34,6 +34,12 @@
                 <option value="7">7</option>
                 <option value="8">8</option>
             </select>
+        </div>
+
+        <div class="sdpi-item">
+            <div class="sdpi-item-label">(Optional) Default Guild ID</div>
+            <sdpi-textfield class="sdpi-item-value sdProperty" setting="defaultGuildIdString" id="defaultGuildIdString"
+                            value="" oninput="setSettings()">
         </div>
     </div>
 </body>

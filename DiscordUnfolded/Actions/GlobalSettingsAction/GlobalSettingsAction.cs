@@ -23,10 +23,12 @@ namespace DiscordUnfolded {
 
         public override void KeyPressed(KeyPayload payload) {
             if(DiscordRPC.Instance.IsRunning) {
+                Logger.Instance.LogMessage(TracingLevel.WARN, "Discord RPC Stopping was requested by user, by pressing the \"GlobalSettings\" action");
                 DiscordRPC.Instance.Stop();
             }
             else {
-                DiscordRPC.Instance.Start(settings.ClientId, settings.ClientSecret);
+                Logger.Instance.LogMessage(TracingLevel.WARN, "Discord RPC Starting was requested by user, by pressing the \"GlobalSettings\" action");
+                DiscordRPC.Instance.Start(settings.ClientId, settings.ClientSecret, settings.DefaultGuildIdString);
             }
         }
 
@@ -36,18 +38,25 @@ namespace DiscordUnfolded {
 
         // if local settings are received then set them and send out a "GlobalSettingsReceived" message
         public override void ReceivedSettings(ReceivedSettingsPayload payload) {
+            string previousClientID = settings.ClientId;
+            string previousClientSecret = settings.ClientSecret;
+
             Tools.AutoPopulateSettings(settings, payload.Settings);
             SaveSettings();
-            Logger.Instance.LogMessage(TracingLevel.DEBUG, "GlobalSettingsAction: Received Settings: " + settings);
+
             ChannelGridManager.Instance.Width = settings.MaxChannelWidth;
-            DiscordRPC.Instance.Stop();
-            DiscordRPC.Instance.Start(settings.ClientId, settings.ClientSecret);
+
+            if(previousClientID != settings.ClientId || previousClientSecret != settings.ClientSecret) {
+                Logger.Instance.LogMessage(TracingLevel.INFO, "Updated ClientID or Client Secret. Restarting IPC Connection");
+                DiscordRPC.Instance.Stop();
+                DiscordRPC.Instance.Start(settings.ClientId, settings.ClientSecret, settings.DefaultGuildIdString);
+            }
+            
         }
 
         // if global settings are received, then load the settings, but do not send out another "GlobalSettingsReceived" message
         public override void ReceivedGlobalSettings(ReceivedGlobalSettingsPayload payload) {
             Tools.AutoPopulateSettings(settings, payload.Settings);
-            Logger.Instance.LogMessage(TracingLevel.DEBUG, "GlobalSettingsAction: Received Global Settings: " + settings);
             Connection.SetSettingsAsync(JObject.FromObject(settings)).GetAwaiter().GetResult();
         }
 

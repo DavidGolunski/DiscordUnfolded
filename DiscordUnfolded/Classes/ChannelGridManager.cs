@@ -214,14 +214,21 @@ namespace DiscordUnfolded {
                 DiscordVoiceChannel voiceChannel = DiscordRPC.Instance.SelectedGuild.GetVoiceChannel(voiceChannelID);
 
                 channelGrid.Add(new List<ChannelGridInfo>());
-                List<ulong> userIDsInVoiceChannel = voiceChannel.GetUserIDs();
+                List<ulong> userIDsInVoiceChannels = voiceChannel.GetUserIDs();
+
+                // sort the user IDs asc, and put the own user at first place
+                userIDsInVoiceChannels = userIDsInVoiceChannels
+                    .OrderBy(id => id != this.SelectedUserId) // Ensure SelectedUserId comes first
+                    .ThenBy(id => id) // Sort all other entries in ascending order
+                    .ToList();
+
 
                 // add the voice channel info in first position
-                channelGrid.Last().Add(new ChannelGridInfo(voiceChannel.GetInfo(), userIDsInVoiceChannel));
+                channelGrid.Last().Add(new ChannelGridInfo(voiceChannel.GetInfo(), userIDsInVoiceChannels));
 
 
                 DiscordUser selectedDiscordUser = null;
-                for(int i = 0; i < userIDsInVoiceChannel.Count; i++) {
+                for(int i = 0; i < userIDsInVoiceChannels.Count; i++) {
                     // if the number of users exceeds the width, then add a new row and add an empty button to the first position
                     if(i > 0 && i % Width == 0) {
                         channelGrid.Add(new List<ChannelGridInfo>());
@@ -229,7 +236,7 @@ namespace DiscordUnfolded {
                         continue;
                     }
 
-                    DiscordUser discordUserInVoiceChannel = voiceChannel.GetUser(userIDsInVoiceChannel[i]);
+                    DiscordUser discordUserInVoiceChannel = voiceChannel.GetUser(userIDsInVoiceChannels[i]);
                     if(discordUserInVoiceChannel == null) {
                         channelGrid.Last().Add(new ChannelGridInfo());
                         continue;

@@ -63,7 +63,7 @@ namespace DiscordUnfolded.DiscordCommunication {
             messenger = new IPCMessenger(true);
         }
 
-        public void Start(string clientId, string clientSecret) {
+        public void Start(string clientId, string clientSecret, string defaultGuildIdString) {
             if(IsRunning) return;
             Logger.Instance.LogMessage(TracingLevel.DEBUG, "Starting DiscordRPC");
 
@@ -100,6 +100,20 @@ namespace DiscordUnfolded.DiscordCommunication {
             if(token.IsCancellationRequested) {
                 Stop();
                 return;
+            }
+
+            // connect to the default guild if available
+            bool defaultGuildFound = false;
+            foreach(DiscordGuildInfo discordGuildInfo in AvailableGuilds) {
+                if(discordGuildInfo.GuildId.ToString().Equals(defaultGuildIdString)) {
+                    Logger.Instance.LogMessage(TracingLevel.INFO, "Default Guild was found. Selecting Guild: " + discordGuildInfo.GuildName);
+                    this.SelectGuild(discordGuildInfo.GuildId);
+                    defaultGuildFound = true;
+                    break;
+                }
+            }
+            if(!defaultGuildFound) {
+                Logger.Instance.LogMessage(TracingLevel.INFO, "Default Guild with ID \"" + defaultGuildIdString + "\" was not found. You can set the Guild ID in the Global Settings.");
             }
                 
 

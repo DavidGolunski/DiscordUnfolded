@@ -60,7 +60,7 @@ namespace DiscordUnfolded {
             Tools.AutoPopulateSettings(globalSettings, payload.Settings);
             
             // try starting the Discord RPC connection. This will be run when any action that can use data from DiscordRPC is created
-            DiscordRPC.Instance.Start(globalSettings.ClientId, globalSettings.ClientSecret);
+            DiscordRPC.Instance.Start(globalSettings.ClientId, globalSettings.ClientSecret, globalSettings.DefaultGuildIdString);
         }
 
         public override void ReceivedSettings(ReceivedSettingsPayload payload) {

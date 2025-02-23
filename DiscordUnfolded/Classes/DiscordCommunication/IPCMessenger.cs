@@ -137,7 +137,7 @@ namespace DiscordUnfolded.DiscordCommunication {
                 return null;
             }
 
-            int op = BitConverter.ToInt32(metadataBuffer, 0);
+            int _ = BitConverter.ToInt32(metadataBuffer, 0); // get op code. Not used at the moment
             int jsonLength = BitConverter.ToInt32(metadataBuffer, 4);
 
             int currentIndex = 0;
