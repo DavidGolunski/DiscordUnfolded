@@ -27,6 +27,7 @@ namespace DiscordUnfolded {
         private readonly GlobalSettings globalSettings;
 
         private ChannelGridInfo channelGridInfo = null;
+        private ulong previousSelectedUserId = 0;
 
         private DateTime keyPressedTimestamp = DateTime.MaxValue;
 
@@ -163,8 +164,10 @@ namespace DiscordUnfolded {
          */
         public void UpdateButton(object sender, ChannelGridInfo newChannelGridInfo) {
             // ignore the update if no relevant information has changed. ChannelGridInfo sent by events can not be null
-            if(newChannelGridInfo == null || newChannelGridInfo.Equals(this.channelGridInfo))
+            if(newChannelGridInfo == null || (newChannelGridInfo.Equals(this.channelGridInfo) && previousSelectedUserId == ChannelGridManager.Instance.SelectedUserId))
                 return;
+
+            previousSelectedUserId = ChannelGridManager.Instance.SelectedUserId;
 
             //Logger.Instance.LogMessage(TracingLevel.DEBUG, "ChannelGridAction: ButtonUpdate requirements fullfilled. XPos: " + settings.XPos + " YPos: " + settings.YPos + " oldChannelGridInfo: " + this.channelGridInfo + " newChannelGridInfo: " + newChannelGridInfo);
             this.channelGridInfo = newChannelGridInfo;

@@ -228,15 +228,14 @@ namespace DiscordUnfolded {
 
 
                 DiscordUser selectedDiscordUser = null;
-                for(int i = 0; i < userIDsInVoiceChannels.Count; i++) {
+                foreach(ulong discordUserId in userIDsInVoiceChannels) {
                     // if the number of users exceeds the width, then add a new row and add an empty button to the first position
-                    if(i > 0 && i % Width == 0) {
+                    if(channelGrid.Last().Count % Width == 0) {
                         channelGrid.Add(new List<ChannelGridInfo>());
                         channelGrid.Last().Add(new ChannelGridInfo());
-                        continue;
                     }
 
-                    DiscordUser discordUserInVoiceChannel = voiceChannel.GetUser(userIDsInVoiceChannels[i]);
+                    DiscordUser discordUserInVoiceChannel = voiceChannel.GetUser(discordUserId);
                     if(discordUserInVoiceChannel == null) {
                         channelGrid.Last().Add(new ChannelGridInfo());
                         continue;
